@@ -17,38 +17,18 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     */
 
-#ifndef HW_STARYAG2_H_
-#define HW_STARYAG2_H_
+#ifndef HW_STARYAL2_H_
+#define HW_STARYAL2_H_
 
-#define HW_NAME					"STARYA_V1"
+#define HW_NAME					"STARYA_G3_r17_11_39"
 
 #define HW_MAJOR				0
 #define HW_MINOR				1
 
 // HW properties
 // #define HW_HAS_DRV8301
-
-// Force operation in a logical 2-shunt configuration.
-// Only phase current Ia and Ib are physically measured.
-// The third phase current Ic is reconstructed using KCL:
-//
-//     Ia + Ib + Ic = 0  ⇒  Ic = −(Ia + Ib)
-//
-// This is intentionally done to:
-// 1) Avoid using the third current channel during RS / resistance tests
-// 2) Prevent noise / offset issues from an unused or unreliable shunt path
-// 3) Keep FOC current reconstruction deterministic
-//
-// NOTE:
-// - ADC midpoint is assumed to be 2048 (12-bit ADC, Vref/2 bias)
-// - Even though HW_HAS_3_SHUNTS is defined for firmware compatibility,
-//   only two shunt measurements are effectively used.
 #define HW_HAS_3_SHUNTS
-// #define GET_CURRENT3()			(-(GET_CURRENT1() - 2048.0 + GET_CURRENT2() -2048.0) + 2048.0)
-
-// Now this board has phase shunts, so we can measure currents in V0 and V7 as well.
 #define HW_HAS_PHASE_SHUNTS
-
 // #define HW_HAS_PERMANENT_NRF
 // Macros
 #define ENABLE_GATE()			palClearPad(GPIOB, 5)
@@ -123,7 +103,7 @@
 #define VIN_R2					3240.0
 #endif
 #ifndef CURRENT_AMP_GAIN
-#define CURRENT_AMP_GAIN		-20.0
+#define CURRENT_AMP_GAIN		20.0
 #endif
 #ifndef CURRENT_SHUNT_RES
 #define CURRENT_SHUNT_RES		0.0002
@@ -231,16 +211,18 @@
 #define READ_HALL2()			palReadPad(HW_HALL_ENC_GPIO2, HW_HALL_ENC_PIN2)
 #define READ_HALL3()			palReadPad(HW_HALL_ENC_GPIO3, HW_HALL_ENC_PIN3)
 
+#define READ_PPM_PIN()			palReadPad(HW_ICU_GPIO, HW_ICU_PIN)
+
 // Default setting overrides - Starya Defaults
 
 #ifndef MCCONF_DEFAULT_MOTOR_TYPE
 #define MCCONF_DEFAULT_MOTOR_TYPE		MOTOR_TYPE_FOC
 #endif
 #ifndef MCCONF_L_MAX_ABS_CURRENT
-#define MCCONF_L_MAX_ABS_CURRENT		400.0	// The maximum absolute current above which a fault is generated
+#define MCCONF_L_MAX_ABS_CURRENT		200.0	// The maximum absolute current above which a fault is generated
 #endif
 #ifndef MCCONF_FOC_SAMPLE_V0_V7
-#define MCCONF_FOC_SAMPLE_V0_V7			false	// Run control loop in both v0 and v7 (requires phase shunts)
+#define MCCONF_FOC_SAMPLE_V0_V7			true	// Run control loop in both v0 and v7 (requires phase shunts)
 #endif
 #ifndef MCCONF_L_MIN_VOLTAGE
 #define MCCONF_L_MIN_VOLTAGE			24.0		// Minimum input voltage
@@ -270,19 +252,19 @@
 #define MCCONF_L_LIM_TEMP_ACCEL_DEC		0.15	// Decrease temperature limits this much during acceleration
 #endif
 #ifndef MCCONF_L_CURRENT_MAX
-#define MCCONF_L_CURRENT_MAX			300.0	// Current limit in Amperes (Upper)
+#define MCCONF_L_CURRENT_MAX			60.0	// Current limit in Amperes (Upper)
 #endif
 #ifndef MCCONF_L_CURRENT_MIN
-#define MCCONF_L_CURRENT_MIN			-40.0	// Current limit in Amperes (Lower)
+#define MCCONF_L_CURRENT_MIN			-60.0	// Current limit in Amperes (Lower)
 #endif
 #ifndef MCCONF_L_IN_CURRENT_MAX
-#define MCCONF_L_IN_CURRENT_MAX			90.0	// Input current limit in Amperes (Upper)
+#define MCCONF_L_IN_CURRENT_MAX			60.0	// Input current limit in Amperes (Upper)
 #endif
 #ifndef MCCONF_L_IN_CURRENT_MIN
-#define MCCONF_L_IN_CURRENT_MIN			-40.0	// Input current limit in Amperes (Lower)
+#define MCCONF_L_IN_CURRENT_MIN			-60.0	// Input current limit in Amperes (Lower)
 #endif
 #ifndef MCCONF_L_MAX_ABS_CURRENT
-#define MCCONF_L_MAX_ABS_CURRENT		400.0	// The maximum absolute current above which a fault is generated
+#define MCCONF_L_MAX_ABS_CURRENT		200.0	// The maximum absolute current above which a fault is generated
 #endif
 #ifndef MCCONF_L_RPM_MAX
 #define MCCONF_L_RPM_MAX				22000.0	    // The motor speed limit (Upper)
@@ -291,10 +273,10 @@
 #define MCCONF_L_RPM_MIN				-2200.0     // The motor speed limit (Lower)
 #endif
 #ifndef MCCONF_L_WATT_MAX
-#define MCCONF_L_WATT_MAX				6000.0	    // Maximum wattage output
+#define MCCONF_L_WATT_MAX				3000.0	    // Maximum wattage output
 #endif
 #ifndef MCCONF_L_WATT_MIN
-#define MCCONF_L_WATT_MIN				-6000.0	    // Minimum wattage output (braking)
+#define MCCONF_L_WATT_MIN				-3000.0	    // Minimum wattage output (braking)
 #endif
 #ifndef MCCONF_L_CURRENT_MAX_SCALE
 #define MCCONF_L_CURRENT_MAX_SCALE		1.0         // Maximum current scale
@@ -303,10 +285,10 @@
 #define MCCONF_L_CURRENT_MIN_SCALE		1.0	        // Minimum current scale
 #endif
 #ifndef MCCONF_FOC_FW_CURRENT_MAX   
-#define MCCONF_FOC_FW_CURRENT_MAX		100.0	 // FieldWeakening Fullest
+#define MCCONF_FOC_FW_CURRENT_MAX		0.0	 // FieldWeakening Fullest
 #endif
 #ifndef MCCONF_M_BATT_FILTER_CONST
-#define MCCONF_M_BATT_FILTER_CONST		70 // Battery level filter constant
+#define MCCONF_M_BATT_FILTER_CONST		50 // Battery level filter constant
 #endif
 
 // Additional Details
@@ -343,4 +325,4 @@
 #define HW_LIM_TEMP_FET			-40.0, 110.0
 // #define HW_LIM_TEMP_MOTOR			-40.0, 400.0
 
-#endif /* HW_STARYAG2_H_ */
+#endif /* HW_STARYAL2_H_ */
