@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "STM32F405 Debug (OpenOCD + ST-Link)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/staryag3/staryag3.elf",
+      "configFiles": [
+        "interface/stlink.cfg",
+        "target/stm32f4x.cfg"
+      ],
+      "svdFile": "${workspaceFolder}/STM32F405.svd",
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "none",
+      "gdbPath": "${workspaceFolder}/tools/gcc-arm-none-eabi-13/bin/arm-none-eabi-gdb",
+      "preLaunchTask": "make",
+      "rtos": "auto",
+      "liveWatch": {
+        "enabled": true,
+        "samplesPerSecond": 4
+      },
+      "swoConfig": {
+        "enabled": true,
+        "swoFrequency": 2000000,
+        "cpuFrequency": 168000000,
+        "source": "probe"
+      }
+    }
+  ]
+}
