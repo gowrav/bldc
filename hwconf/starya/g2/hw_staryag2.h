@@ -17,18 +17,18 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     */
 
-#ifndef HW_STARYAL2_H_
-#define HW_STARYAL2_H_
+#ifndef HW_STARYAG2_H_
+#define HW_STARYAG2_H_
 
-#define HW_NAME					"STARYA_G3_r17_11_39"
+#define HW_NAME					"STARYA_G2_TEST"
 
-#define HW_MAJOR				0
-#define HW_MINOR				1
+#define HW_MAJOR				1
+#define HW_MINOR				3
 
 // HW properties
 // #define HW_HAS_DRV8301
 #define HW_HAS_3_SHUNTS
-#define HW_HAS_PHASE_SHUNTS
+// #define HW_HAS_PHASE_SHUNTS
 // #define HW_HAS_PERMANENT_NRF
 // Macros
 #define ENABLE_GATE()			palClearPad(GPIOB, 5)
@@ -103,7 +103,7 @@
 #define VIN_R2					3240.0
 #endif
 #ifndef CURRENT_AMP_GAIN
-#define CURRENT_AMP_GAIN		20.0
+#define CURRENT_AMP_GAIN		-20.0
 #endif
 #ifndef CURRENT_SHUNT_RES
 #define CURRENT_SHUNT_RES		0.0002
@@ -318,7 +318,7 @@
 #define HW_LIM_CURRENT			-400.0, 400.0
 #define HW_LIM_CURRENT_IN		-200.0, 200.0
 #define HW_LIM_CURRENT_ABS		0.0, 400.0
-#define HW_LIM_VIN				12, 100.0
+#define HW_LIM_VIN				8, 100.0
 #define HW_LIM_ERPM				-200e3, 200e3
 #define HW_LIM_DUTY_MIN			0.0, 0.1
 #define HW_LIM_DUTY_MAX			0.0, 0.99
