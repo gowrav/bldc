@@ -19,10 +19,9 @@ Branch: `ramesh_sir_vehicle` (both `bldc` and `vesc_tool`)
 
 ## Notes
 
-- The firmware binaries here are the **Jun 14** build output. They were NOT
-  regenerated from a clean build because the `build/` directory is owned by
-  `root`; to produce a verified-fresh build, clear it (`sudo rm -rf build`)
-  and run `make fw_staryag2`.
+- The firmware binaries here are a **clean build from branch
+  `ramesh_sir_vehicle`** (`make fw_staryag2`). The git branch/commit are
+  embedded in the binary, so checksums are specific to this branch.
 - The VESC Tool app is unsigned/un-notarized. On first launch macOS may block
   it: right-click → Open, or run
   `xattr -dr com.apple.quarantine "VESC Tool.app"`.
