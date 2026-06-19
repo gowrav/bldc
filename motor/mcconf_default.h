@@ -295,6 +295,9 @@
 #ifndef MCCONF_FOC_MOTOR_LQ
 #define MCCONF_FOC_MOTOR_LQ				0.0		// Explicit q-axis inductance (SynRM). 0 = unused, fall back to foc_motor_l
 #endif
+#ifndef MCCONF_FOC_SYNRM_PHASE_OFFSET
+#define MCCONF_FOC_SYNRM_PHASE_OFFSET	0.0		// SynRM experiment: electrical-deg offset added to the sensored commutation angle. 0 = no change
+#endif
 #ifndef MCCONF_FOC_MOTOR_R
 #define MCCONF_FOC_MOTOR_R				0.015
 #endif

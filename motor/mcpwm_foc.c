@@ -3514,6 +3514,14 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 				state_now->phase = foc_correct_hall(motor_now->m_phase_now_observer, dt, motor_now,
 						utils_read_hall(motor_now != &m_motor_1, conf_now->m_hall_extra_samples));
 
+				// SynRM experiment: add a tunable electrical-deg offset to the hall commutation angle.
+				// Default 0 => no change. Used to test/correct hall-vs-torque-axis misalignment on
+				// high-saliency PMa-SynRM (where pure-iq sensored current control can lock the rotor).
+				if (conf_now->foc_synrm_phase_offset != 0.0) {
+					state_now->phase += DEG2RAD_f(conf_now->foc_synrm_phase_offset);
+					utils_norm_angle_rad((float*)&state_now->phase);
+				}
+
 				if (!motor_now->m_phase_override && motor_now->m_control_mode != CONTROL_MODE_OPENLOOP_PHASE) {
 					id_set_tmp = 0.0;
 				}
