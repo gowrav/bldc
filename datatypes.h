@@ -458,6 +458,8 @@ typedef struct {
 	float foc_encoder_ratio;
 	float foc_motor_l;
 	float foc_motor_ld_lq_diff;
+	float foc_motor_ld;
+	float foc_motor_lq;
 	float foc_motor_r;
 	float foc_motor_flux_linkage;
 	float foc_observer_gain;

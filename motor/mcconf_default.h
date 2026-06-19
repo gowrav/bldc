@@ -289,6 +289,12 @@
 #ifndef MCCONF_FOC_MOTOR_L
 #define MCCONF_FOC_MOTOR_L				0.000007
 #endif
+#ifndef MCCONF_FOC_MOTOR_LD
+#define MCCONF_FOC_MOTOR_LD				0.0		// Explicit d-axis inductance (SynRM). 0 = unused, fall back to foc_motor_l
+#endif
+#ifndef MCCONF_FOC_MOTOR_LQ
+#define MCCONF_FOC_MOTOR_LQ				0.0		// Explicit q-axis inductance (SynRM). 0 = unused, fall back to foc_motor_l
+#endif
 #ifndef MCCONF_FOC_MOTOR_R
 #define MCCONF_FOC_MOTOR_R				0.015
 #endif

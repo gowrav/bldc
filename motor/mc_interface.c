@@ -330,6 +330,15 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 #endif
 #endif
 
+	// SynRM: when explicit Ld/Lq are provided, they are the source of truth. Derive VESC's
+	// lumped foc_motor_l = (Ld+Lq)/2 and foc_motor_ld_lq_diff = Lq-Ld (sign per foc_math.c:776-777)
+	// so stock FOC/MTPA/decoupling keep working. Gated on both > 0 => zero behavior change for
+	// existing configs (defaults are 0).
+	if (configuration->foc_motor_ld > 0.0 && configuration->foc_motor_lq > 0.0) {
+		configuration->foc_motor_l = 0.5 * (configuration->foc_motor_ld + configuration->foc_motor_lq);
+		configuration->foc_motor_ld_lq_diff = configuration->foc_motor_lq - configuration->foc_motor_ld;
+	}
+
 	if (motor->m_conf.m_sensor_port_mode != configuration->m_sensor_port_mode) {
 		encoder_deinit();
 		encoder_init(configuration);

@@ -212,6 +212,8 @@ int32_t confgenerator_serialize_mcconf(uint8_t *buffer, const mc_configuration *
 	buffer_append_float16(buffer, conf->bms.vmax_limit_start, 1000, &ind);
 	buffer_append_float16(buffer, conf->bms.vmax_limit_end, 1000, &ind);
 	buffer[ind++] = conf->bms.fwd_can_mode;
+	buffer_append_float32_auto(buffer, conf->foc_motor_ld, &ind);
+	buffer_append_float32_auto(buffer, conf->foc_motor_lq, &ind);
 
 	return ind;
 }
@@ -556,6 +558,8 @@ bool confgenerator_deserialize_mcconf(const uint8_t *buffer, mc_configuration *c
 	conf->bms.vmax_limit_start = buffer_get_float16(buffer, 1000, &ind);
 	conf->bms.vmax_limit_end = buffer_get_float16(buffer, 1000, &ind);
 	conf->bms.fwd_can_mode = buffer[ind++];
+	conf->foc_motor_ld = buffer_get_float32_auto(buffer, &ind);
+	conf->foc_motor_lq = buffer_get_float32_auto(buffer, &ind);
 
 	return true;
 }
@@ -758,6 +762,8 @@ void confgenerator_set_defaults_mcconf(mc_configuration *conf) {
 	conf->foc_pll_ki = MCCONF_FOC_PLL_KI;
 	conf->foc_motor_l = MCCONF_FOC_MOTOR_L;
 	conf->foc_motor_ld_lq_diff = MCCONF_FOC_MOTOR_LD_LQ_DIFF;
+	conf->foc_motor_ld = MCCONF_FOC_MOTOR_LD;
+	conf->foc_motor_lq = MCCONF_FOC_MOTOR_LQ;
 	conf->foc_motor_r = MCCONF_FOC_MOTOR_R;
 	conf->foc_motor_flux_linkage = MCCONF_FOC_MOTOR_FLUX_LINKAGE;
 	conf->foc_observer_gain = MCCONF_FOC_OBSERVER_GAIN;
