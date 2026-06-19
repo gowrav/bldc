@@ -230,6 +230,7 @@ typedef struct {
 	bool m_synrm_use_hall;
 	float m_synrm_hall_sin[8];
 	float m_synrm_hall_cos[8];
+	float m_synrm_erpm_filt;
 	float m_hall_dt_diff_last;
 	float m_hall_dt_diff_now;
 	bool m_motor_released;

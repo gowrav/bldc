@@ -3500,10 +3500,27 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 						conf_now->foc_hall_table[7] = 255;
 					}
 
-					// Speed-thresholded swap with hysteresis (drop back to encoder below 0.8x).
-					if (erpm_abs > conf_now->foc_synrm_hybrid_erpm) {
+					// Fail-safe handoff: only commutate on halls when (a) the FILTERED speed is above
+					// the threshold (raw PLL speed spikes near standstill and would chatter), (b) the
+					// hall table is fully learned (per-state circular-mean magnitude high), and (c) the
+					// hall angle currently AGREES with the encoder (<~20°). Otherwise stay on the
+					// encoder — the known-good low-speed behavior. This prevents the handoff from ever
+					// destabilizing low speed.
+					UTILS_LP_FAST(motor_now->m_synrm_erpm_filt, erpm_abs, 0.01);
+					float erpm_f = motor_now->m_synrm_erpm_filt;
+
+					bool all_learned = true;
+					for (int i = 1; i <= 6; i++) {
+						if ((SQ(motor_now->m_synrm_hall_sin[i]) + SQ(motor_now->m_synrm_hall_cos[i])) < 0.25) {
+							all_learned = false;
+							break;
+						}
+					}
+					float ang_err = fabsf(utils_angle_difference_rad(enc_phase, hall_phase));
+
+					if (erpm_f > conf_now->foc_synrm_hybrid_erpm && all_learned && ang_err < 0.35) {
 						motor_now->m_synrm_use_hall = true;
-					} else if (erpm_abs < (conf_now->foc_synrm_hybrid_erpm * 0.8)) {
+					} else if (erpm_f < (conf_now->foc_synrm_hybrid_erpm * 0.8) || !all_learned) {
 						motor_now->m_synrm_use_hall = false;
 					}
 
