@@ -24,9 +24,18 @@
 #include "terminal.h"
 #include "commands.h"
 #include "mc_interface.h"
+#include "encoder/encoder.h"
 
 // Variables
 static volatile bool i2c_running = false;
+
+// SynRM analog absolute encoder: the AS5600 analog OUT is wired to PA6 (ADC2 ch6),
+// sampled into ADC_Value[ADC_IND_EXT2]. Return the raw 0-360 deg angle; VESC's
+// foc_encoder_ratio (=2) / foc_encoder_offset (~305) / foc_encoder_inverted then map it
+// to the motor electrical angle (= synmoc's encoder_AS5600: angle/4096*360*2 + 305).
+static float synrm_analog_enc_read_deg(void) {
+	return ((float)ADC_Value[ADC_IND_EXT2] / 4096.0f) * 360.0f;
+}
 
 // I2C configuration
 static const I2CConfig i2cfg = {
@@ -104,6 +113,9 @@ void hw_init_gpio(void) {
 	palSetPadMode(GPIOC, 3, PAL_MODE_INPUT_ANALOG);
 	palSetPadMode(GPIOC, 4, PAL_MODE_INPUT_ANALOG);
 
+	// Register the SynRM analog absolute encoder (PA6) for SENSOR_PORT_MODE_CUSTOM_ENCODER.
+	// Harmless unless that sensor mode is selected.
+	encoder_set_custom_callbacks(synrm_analog_enc_read_deg, 0, 0);
 }
 
 void hw_setup_adc_channels(void) {
