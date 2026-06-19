@@ -225,6 +225,11 @@ typedef struct {
 	bool m_using_hall;
 	float m_ang_hall;
 	float m_ang_hall_rate_limited;
+	// SynRM encoder->hall handoff (foc_synrm_hybrid_erpm): hysteresis state + per-hall-state
+	// circular-mean accumulators used to learn foc_hall_table from the absolute encoder at low speed.
+	bool m_synrm_use_hall;
+	float m_synrm_hall_sin[8];
+	float m_synrm_hall_cos[8];
 	float m_hall_dt_diff_last;
 	float m_hall_dt_diff_now;
 	bool m_motor_released;

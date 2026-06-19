@@ -3455,9 +3455,10 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 			FOC_PROFILE_LINE_FINE();
 
 			switch (conf_now->foc_sensor_mode) {
-			case FOC_SENSOR_MODE_ENCODER:
+			case FOC_SENSOR_MODE_ENCODER: {
+				float enc_phase;
 				if (encoder_index_found() || virtual_motor_is_connected()) {
-					state_now->phase = foc_correct_encoder(
+					enc_phase = foc_correct_encoder(
 							motor_now->m_phase_now_observer,
 							motor_now->m_phase_now_encoder,
 							motor_now->m_speed_est_fast,
@@ -3465,13 +3466,57 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 							motor_now);
 				} else {
 					// Rotate the motor in open loop if the index isn't found.
-					state_now->phase = motor_now->m_phase_now_encoder_no_index;
+					enc_phase = motor_now->m_phase_now_encoder_no_index;
+				}
+
+				state_now->phase = enc_phase;
+
+				// SynRM encoder->hall handoff: the analog (ADC) absolute encoder is reliable at low
+				// speed but lags/aliases at high RPM, where the digital halls give clean edge timing.
+				// Below the threshold commutate on the encoder AND learn foc_hall_table from it
+				// (encoder-referenced circular mean per hall state); above the threshold commutate on
+				// the halls via foc_correct_hall. foc_synrm_hybrid_erpm == 0 disables (pure encoder).
+				if (conf_now->foc_synrm_hybrid_erpm > 0.0) {
+					int hall = utils_read_hall(motor_now != &m_motor_1, conf_now->m_hall_extra_samples);
+					// Keep the hall interpolator warm every cycle so it is ready at the handoff.
+					float hall_phase = foc_correct_hall(motor_now->m_phase_now_observer, dt, motor_now, hall);
+					float erpm_abs = fabsf(RADPS2RPM_f(motor_now->m_pll_speed));
+
+					// Learn the table from the trusted encoder while at/below the handoff speed.
+					if (erpm_abs < conf_now->foc_synrm_hybrid_erpm && hall >= 1 && hall <= 6) {
+						float s, c;
+						utils_fast_sincos_better(enc_phase, &s, &c);
+						UTILS_LP_FAST(motor_now->m_synrm_hall_sin[hall], s, 0.002);
+						UTILS_LP_FAST(motor_now->m_synrm_hall_cos[hall], c, 0.002);
+						float a = utils_fast_atan2(motor_now->m_synrm_hall_sin[hall],
+								motor_now->m_synrm_hall_cos[hall]);
+						int v = (int)(a * (200.0 / (2.0 * M_PI)));
+						v %= 200;
+						if (v < 0) {
+							v += 200;
+						}
+						conf_now->foc_hall_table[hall] = v;
+						conf_now->foc_hall_table[0] = 255;
+						conf_now->foc_hall_table[7] = 255;
+					}
+
+					// Speed-thresholded swap with hysteresis (drop back to encoder below 0.8x).
+					if (erpm_abs > conf_now->foc_synrm_hybrid_erpm) {
+						motor_now->m_synrm_use_hall = true;
+					} else if (erpm_abs < (conf_now->foc_synrm_hybrid_erpm * 0.8)) {
+						motor_now->m_synrm_use_hall = false;
+					}
+
+					if (motor_now->m_synrm_use_hall) {
+						state_now->phase = hall_phase;
+					}
 				}
 
 				if (!motor_now->m_phase_override && motor_now->m_control_mode != CONTROL_MODE_OPENLOOP_PHASE) {
 					id_set_tmp = 0.0;
 				}
 				break;
+			}
 
 			case FOC_SENSOR_MODE_ENCODER_AB:
 				// AB encoder without index pin. Sync encoder to observer at sensorless ERPM

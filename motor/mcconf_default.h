@@ -298,6 +298,9 @@
 #ifndef MCCONF_FOC_SYNRM_PHASE_OFFSET
 #define MCCONF_FOC_SYNRM_PHASE_OFFSET	0.0		// SynRM experiment: electrical-deg offset added to the sensored commutation angle. 0 = no change
 #endif
+#ifndef MCCONF_FOC_SYNRM_HYBRID_ERPM
+#define MCCONF_FOC_SYNRM_HYBRID_ERPM	0.0		// SynRM encoder->hall handoff ERPM (in ENCODER mode). 0 = disabled (pure encoder). Above this, commutate on halls.
+#endif
 #ifndef MCCONF_FOC_MOTOR_R
 #define MCCONF_FOC_MOTOR_R				0.015
 #endif

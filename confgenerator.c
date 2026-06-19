@@ -215,6 +215,7 @@ int32_t confgenerator_serialize_mcconf(uint8_t *buffer, const mc_configuration *
 	buffer_append_float32_auto(buffer, conf->foc_motor_ld, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_motor_lq, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_synrm_phase_offset, &ind);
+	buffer_append_float32_auto(buffer, conf->foc_synrm_hybrid_erpm, &ind);
 
 	return ind;
 }
@@ -562,6 +563,7 @@ bool confgenerator_deserialize_mcconf(const uint8_t *buffer, mc_configuration *c
 	conf->foc_motor_ld = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_motor_lq = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_phase_offset = buffer_get_float32_auto(buffer, &ind);
+	conf->foc_synrm_hybrid_erpm = buffer_get_float32_auto(buffer, &ind);
 
 	return true;
 }
@@ -767,6 +769,7 @@ void confgenerator_set_defaults_mcconf(mc_configuration *conf) {
 	conf->foc_motor_ld = MCCONF_FOC_MOTOR_LD;
 	conf->foc_motor_lq = MCCONF_FOC_MOTOR_LQ;
 	conf->foc_synrm_phase_offset = MCCONF_FOC_SYNRM_PHASE_OFFSET;
+	conf->foc_synrm_hybrid_erpm = MCCONF_FOC_SYNRM_HYBRID_ERPM;
 	conf->foc_motor_r = MCCONF_FOC_MOTOR_R;
 	conf->foc_motor_flux_linkage = MCCONF_FOC_MOTOR_FLUX_LINKAGE;
 	conf->foc_observer_gain = MCCONF_FOC_OBSERVER_GAIN;

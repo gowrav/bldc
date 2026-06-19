@@ -461,6 +461,7 @@ typedef struct {
 	float foc_motor_ld;
 	float foc_motor_lq;
 	float foc_synrm_phase_offset;
+	float foc_synrm_hybrid_erpm;
 	float foc_motor_r;
 	float foc_motor_flux_linkage;
 	float foc_observer_gain;
