@@ -270,7 +270,7 @@
 #define MCCONF_L_RPM_MAX				22000.0	    // The motor speed limit (Upper)
 #endif
 #ifndef MCCONF_L_RPM_MIN
-#define MCCONF_L_RPM_MIN				-2200.0     // The motor speed limit (Lower)
+#define MCCONF_L_RPM_MIN				-22000.0    // The motor speed limit (Lower)
 #endif
 #ifndef MCCONF_L_WATT_MAX
 #define MCCONF_L_WATT_MAX				3000.0	    // Maximum wattage output
@@ -289,6 +289,60 @@
 #endif
 #ifndef MCCONF_M_BATT_FILTER_CONST
 #define MCCONF_M_BATT_FILTER_CONST		50 // Battery level filter constant
+#endif
+
+// PMa-SynRM (Starya test motor) — hardcoded known-working motor constants (synmoc-derived)
+// so a fresh flash comes up ready without re-running motor detection.
+// See docs/synrm/05-bench-config.md. ld_lq_diff stays POSITIVE (Lq-Ld) — do not flip.
+#ifndef MCCONF_FOC_SENSOR_MODE
+#define MCCONF_FOC_SENSOR_MODE			FOC_SENSOR_MODE_HALL       // hall-only (proven in synmoc)
+#endif
+// Stay PURE HALL across the usable range — the stock observer can't track this saliency and
+// capped speed at ~3000 ERPM (the old 2500/3500 blend window). Verified: pure hall → 16k+ ERPM.
+#ifndef MCCONF_FOC_SL_ERPM_START
+#define MCCONF_FOC_SL_ERPM_START		20000.0                    // hall up to here (was 2500)
+#endif
+#ifndef MCCONF_FOC_SL_ERPM
+#define MCCONF_FOC_SL_ERPM				22000.0                    // never fully sensorless (was 3500)
+#endif
+#ifndef MCCONF_FOC_MOTOR_R
+#define MCCONF_FOC_MOTOR_R				0.00719                    // Rs = 7.19 mOhm (measured)
+#endif
+#ifndef MCCONF_FOC_MOTOR_L
+#define MCCONF_FOC_MOTOR_L				0.000365                   // (Ld+Lq)/2 = (245+485)/2 uH (synmoc)
+#endif
+#ifndef MCCONF_FOC_MOTOR_FLUX_LINKAGE
+#define MCCONF_FOC_MOTOR_FLUX_LINKAGE	0.000528                   // lambda = 0.528 mWb (synmoc known-working)
+#endif
+#ifndef MCCONF_FOC_MOTOR_LD_LQ_DIFF
+#define MCCONF_FOC_MOTOR_LD_LQ_DIFF		0.000240                   // Lq-Ld = 240 uH (synmoc; KEEP POSITIVE)
+#endif
+#ifndef MCCONF_FOC_MTPA_MODE
+#define MCCONF_FOC_MTPA_MODE			MTPA_MODE_IQ_TARGET        // reluctance MTPA
+#endif
+#ifndef MCCONF_FOC_CC_DECOUPLING
+#define MCCONF_FOC_CC_DECOUPLING		FOC_CC_DECOUPLING_DISABLED // match synmoc (also the global default)
+#endif
+
+// App control defaults — ADC throttle + UART control for both g2/g3.
+// Current control; throttle start/center/max voltages + 15% deadband. Tweak in VESC Tool after flash.
+#ifndef APPCONF_APP_TO_USE
+#define APPCONF_APP_TO_USE				APP_ADC_UART               // ADC throttle + UART
+#endif
+#ifndef APPCONF_ADC_CTRL_TYPE
+#define APPCONF_ADC_CTRL_TYPE			ADC_CTRL_TYPE_CURRENT      // current control
+#endif
+#ifndef APPCONF_ADC_VOLTAGE_START
+#define APPCONF_ADC_VOLTAGE_START		0.8                        // throttle start (V)
+#endif
+#ifndef APPCONF_ADC_VOLTAGE_CENTER
+#define APPCONF_ADC_VOLTAGE_CENTER		1.2                        // throttle center (V)
+#endif
+#ifndef APPCONF_ADC_VOLTAGE_END
+#define APPCONF_ADC_VOLTAGE_END			2.5                        // throttle max (V)
+#endif
+#ifndef APPCONF_ADC_HYST
+#define APPCONF_ADC_HYST				0.15                       // 15% deadband
 #endif
 
 // Additional Details
