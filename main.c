@@ -188,7 +188,7 @@ static THD_FUNCTION(periodic_thread, arg) {
 			break;
 		}
 
-		if (mc_interface_get_configuration()->motor_type == MOTOR_TYPE_FOC) {
+		if (MOTOR_TYPE_IS_FOC(mc_interface_get_configuration()->motor_type)) {
 			switch (display_mode) {
 			case DISP_POS_MODE_OBSERVER:
 				commands_send_rotor_pos(mcpwm_foc_get_phase_observer());

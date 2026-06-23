@@ -114,8 +114,14 @@ typedef enum {
 typedef enum {
 	MOTOR_TYPE_BLDC = 0,
 	MOTOR_TYPE_DC,
-	MOTOR_TYPE_FOC
+	MOTOR_TYPE_FOC,
+	MOTOR_TYPE_SYNRM
 } mc_motor_type;
+
+// SynRM is FOC with a different position/handoff pipeline; everywhere that gates generic
+// FOC behavior should treat SynRM as FOC. Use this for the "FOC-family" comparisons (the
+// pipeline divergence happens explicitly inside mcpwm_foc, not here).
+#define MOTOR_TYPE_IS_FOC(t)	((t) == MOTOR_TYPE_FOC || (t) == MOTOR_TYPE_SYNRM)
 
 // FOC current controller decoupling mode.
 typedef enum {

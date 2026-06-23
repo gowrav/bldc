@@ -4798,7 +4798,7 @@ static lbm_value ext_conf_measure_res(lbm_value *args, lbm_uint argn) {
 
 	LBM_CHECK_NUMBER_ALL();
 
-	if (mc_interface_get_configuration()->motor_type != MOTOR_TYPE_FOC) {
+	if (!MOTOR_TYPE_IS_FOC(mc_interface_get_configuration()->motor_type)) {
 		return ENC_SYM_EERROR;
 	}
 
@@ -4878,7 +4878,7 @@ static lbm_value ext_conf_measure_ind(lbm_value *args, lbm_uint argn) {
 
 	LBM_CHECK_NUMBER_ALL();
 
-	if (mc_interface_get_configuration()->motor_type != MOTOR_TYPE_FOC) {
+	if (!MOTOR_TYPE_IS_FOC(mc_interface_get_configuration()->motor_type)) {
 		return ENC_SYM_EERROR;
 	}
 
@@ -5121,7 +5121,7 @@ static lbm_value ext_conf_detect_lambda_enc(lbm_value *args, lbm_uint argn) {
 		return ENC_SYM_TERROR;
 	}
 
-	if (mc_interface_get_configuration()->motor_type != MOTOR_TYPE_FOC) {
+	if (!MOTOR_TYPE_IS_FOC(mc_interface_get_configuration()->motor_type)) {
 		return ENC_SYM_EERROR;
 	}
 
@@ -5204,7 +5204,7 @@ static lbm_value ext_conf_detect_hall(lbm_value *args, lbm_uint argn) {
 		return ENC_SYM_TERROR;
 	}
 
-	if (mc_interface_get_configuration()->motor_type != MOTOR_TYPE_FOC) {
+	if (!MOTOR_TYPE_IS_FOC(mc_interface_get_configuration()->motor_type)) {
 		return ENC_SYM_EERROR;
 	}
 
