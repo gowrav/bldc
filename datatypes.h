@@ -283,6 +283,15 @@ typedef enum {
 	HFI_SAMPLES_32
 } foc_hfi_samples;
 
+// SynRM v2 position-source pipeline: each speed band selects one source.
+typedef enum {
+	SYNRM_SRC_NONE = 0,
+	SYNRM_SRC_HFI,
+	SYNRM_SRC_HALL,
+	SYNRM_SRC_ENCODER,
+	SYNRM_SRC_OBSERVER
+} mc_foc_synrm_src;
+
 typedef enum {
 	BMS_TYPE_NONE = 0,
 	BMS_TYPE_VESC
@@ -468,6 +477,13 @@ typedef struct {
 	float foc_motor_lq;
 	float foc_synrm_phase_offset;
 	float foc_synrm_hybrid_erpm;
+	// SynRM v2 position-source pipeline (3 speed bands + 2 transition ERPMs + blend half-width)
+	mc_foc_synrm_src foc_synrm_src_0;
+	mc_foc_synrm_src foc_synrm_src_1;
+	mc_foc_synrm_src foc_synrm_src_2;
+	float foc_synrm_erpm_01;
+	float foc_synrm_erpm_12;
+	float foc_synrm_blend;
 	float foc_motor_r;
 	float foc_motor_flux_linkage;
 	float foc_observer_gain;

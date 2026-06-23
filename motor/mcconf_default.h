@@ -301,6 +301,25 @@
 #ifndef MCCONF_FOC_SYNRM_HYBRID_ERPM
 #define MCCONF_FOC_SYNRM_HYBRID_ERPM	0.0		// SynRM encoder->hall handoff ERPM (in ENCODER mode). 0 = disabled (pure encoder). Above this, commutate on halls.
 #endif
+// SynRM v2 position-source pipeline (only active when motor_type == SYNRM). Safe default = pure HALL everywhere.
+#ifndef MCCONF_FOC_SYNRM_SRC_0
+#define MCCONF_FOC_SYNRM_SRC_0			SYNRM_SRC_HALL	// low-speed band source
+#endif
+#ifndef MCCONF_FOC_SYNRM_SRC_1
+#define MCCONF_FOC_SYNRM_SRC_1			SYNRM_SRC_HALL	// mid-speed band source
+#endif
+#ifndef MCCONF_FOC_SYNRM_SRC_2
+#define MCCONF_FOC_SYNRM_SRC_2			SYNRM_SRC_HALL	// high-speed band source
+#endif
+#ifndef MCCONF_FOC_SYNRM_ERPM_01
+#define MCCONF_FOC_SYNRM_ERPM_01		2000.0	// transition ERPM, band 0 -> 1
+#endif
+#ifndef MCCONF_FOC_SYNRM_ERPM_12
+#define MCCONF_FOC_SYNRM_ERPM_12		20000.0	// transition ERPM, band 1 -> 2
+#endif
+#ifndef MCCONF_FOC_SYNRM_BLEND
+#define MCCONF_FOC_SYNRM_BLEND			500.0	// blend half-width (ERPM) around each transition
+#endif
 #ifndef MCCONF_FOC_MOTOR_R
 #define MCCONF_FOC_MOTOR_R				0.015
 #endif
