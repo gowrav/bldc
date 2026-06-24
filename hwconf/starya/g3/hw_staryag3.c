@@ -33,8 +33,34 @@ static volatile bool i2c_running = false;
 // sampled into ADC_Value[ADC_IND_EXT2]. Return the raw 0-360 deg angle; VESC's
 // foc_encoder_ratio (=2) / foc_encoder_offset (~305) / foc_encoder_inverted then map it
 // to the motor electrical angle (= synmoc's encoder_AS5600: angle/4096*360*2 + 305).
+// Low-pass filter coefficient for the analog encoder angle (UTILS_LP_FAST-style):
+// k=1.0 => raw/no filtering, smaller => heavier smoothing. The PA6/AS5600 analog read
+// is noisy (~±1 deg jitter + spikes); this cleans up runtime commutation. The encoder
+// is only used at low speed (handed to halls above foc_synrm_hybrid_erpm), so moderate
+// smoothing here costs no high-speed tracking. Tune by reflash.
+#define SYNRM_ENC_LPF_K		0.1f
+
 static float synrm_analog_enc_read_deg(void) {
-	return ((float)ADC_Value[ADC_IND_EXT2] / 4096.0f) * 360.0f;
+	float raw = ((float)ADC_Value[ADC_IND_EXT2] / 4096.0f) * 360.0f;
+
+	static float filt = 0.0f;
+	static bool filt_init = false;
+	if (!filt_init) {
+		filt = raw;
+		filt_init = true;
+		return filt;
+	}
+
+	// Filter the SHORTEST signed angle delta so the 0/360 deg wrap never glitches.
+	float d = raw - filt;
+	while (d > 180.0f)  { d -= 360.0f; }
+	while (d < -180.0f) { d += 360.0f; }
+	filt += SYNRM_ENC_LPF_K * d;
+
+	// Keep the output in [0, 360).
+	while (filt >= 360.0f) { filt -= 360.0f; }
+	while (filt < 0.0f)    { filt += 360.0f; }
+	return filt;
 }
 
 // I2C configuration
