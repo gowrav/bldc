@@ -2857,6 +2857,34 @@ void mcpwm_foc_tim_sample_int_handler(void) {
 	}
 }
 
+// SynRM position pipeline: for a given |erpm|, pick the two band sources that bracket it and
+// the blend weight w (0 = pure low-band source, 1 = pure high-band source) across the overlap
+// window (+-foc_synrm_blend around each changeover). Pure function of config + erpm, so the
+// do_hfi gate in control_current() can reuse it to decide when HFI injection must run.
+static void synrm_band_at(const volatile mc_configuration *conf, float erpm,
+		mc_foc_synrm_src *src_lo, mc_foc_synrm_src *src_hi, float *w) {
+	float e = fabsf(erpm);
+	float t1 = conf->foc_synrm_erpm_01;
+	float t2 = conf->foc_synrm_erpm_12;
+	float bl = conf->foc_synrm_blend;
+	if (bl < 1.0) { bl = 1.0; }
+	mc_foc_synrm_src s0 = conf->foc_synrm_src_0;
+	mc_foc_synrm_src s1 = conf->foc_synrm_src_1;
+	mc_foc_synrm_src s2 = conf->foc_synrm_src_2;
+
+	if (e <= (t1 - bl)) {
+		*src_lo = s0; *src_hi = s0; *w = 0.0;
+	} else if (e < (t1 + bl)) {
+		*src_lo = s0; *src_hi = s1; *w = (e - (t1 - bl)) / (2.0 * bl);
+	} else if (e <= (t2 - bl)) {
+		*src_lo = s1; *src_hi = s1; *w = 0.0;
+	} else if (e < (t2 + bl)) {
+		*src_lo = s1; *src_hi = s2; *w = (e - (t2 - bl)) / (2.0 * bl);
+	} else {
+		*src_lo = s2; *src_hi = s2; *w = 0.0;
+	}
+}
+
 void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 	(void)p;
 	(void)flags;
@@ -3641,17 +3669,153 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 					motor_now->m_hfi.double_integrator = -motor_now->m_speed_est_fast;
 				}
 
+				// Hall-assisted HFI disambiguation (SynRM). HFI tracks the saliency axis finely
+				// but its absolute lock (90deg axis / 180deg polarity) is unreliable on a low-PM
+				// motor. The coarse hall sector pins the correct quadrant: snap m_hfi.angle to the
+				// 90deg-multiple closest to the hall angle, keeping HFI's fine resolution within it.
+				// Needs a calibrated hall table; active below the HFI handoff speed.
+				if (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+						fabsf(RADPS2RPM_f(motor_now->m_pll_speed)) < conf_now->foc_sl_erpm_hfi) {
+					int hall = utils_read_hall(motor_now != &m_motor_1, conf_now->m_hall_extra_samples);
+					int hall_a = conf_now->foc_hall_table[hall];
+					if (hall_a < 201) {
+						float hall_ang = ((float)hall_a / 200.0) * 2.0 * M_PI;
+						float best = motor_now->m_hfi.angle;
+						float best_err = fabsf(utils_angle_difference_rad(best, hall_ang));
+						for (int k = 1; k < 4; k++) {
+							float cand = motor_now->m_hfi.angle + (float)k * (M_PI / 2.0);
+							float err = fabsf(utils_angle_difference_rad(cand, hall_ang));
+							if (err < best_err) {
+								best_err = err;
+								best = cand;
+							}
+						}
+						motor_now->m_hfi.angle = best;
+						utils_norm_angle_rad((float*)&motor_now->m_hfi.angle);
+					}
+				}
+
+				// SynRM: hand HFI off to the HALLS above foc_sl_erpm_hfi (the back-EMF observer
+				// can't track this saliency). Set foc_sl_erpm_hfi low (e.g. 300) so HFI only carries
+				// the breakaway from standstill and halls take over right after.
 				state_now->phase = foc_correct_encoder(
-						motor_now->m_phase_now_observer,
+						conf_now->motor_type == MOTOR_TYPE_SYNRM ?
+								foc_correct_hall(motor_now->m_phase_now_observer, dt, motor_now,
+										utils_read_hall(motor_now != &m_motor_1, conf_now->m_hall_extra_samples)) :
+								motor_now->m_phase_now_observer,
 						motor_now->m_hfi.angle,
 						motor_now->m_speed_est_fast,
 						conf_now->foc_sl_erpm_hfi,
 						motor_now);
 
+				// SynRM HFI: tunable fixed offset on the HFI commutation angle. HFI tracks the
+				// saliency axis accurately (handbrake holds within a few deg) but that axis can sit
+				// a fixed angle off the torque d-axis -> fwd/rev current asymmetry / one-direction
+				// overcurrent. Sweep foc_synrm_phase_offset to center it. 0 = no change.
+				if (conf_now->foc_synrm_phase_offset != 0.0) {
+					state_now->phase += DEG2RAD_f(conf_now->foc_synrm_phase_offset);
+					utils_norm_angle_rad((float*)&state_now->phase);
+				}
+
 				if (!motor_now->m_phase_override && motor_now->m_control_mode != CONTROL_MODE_OPENLOOP_PHASE) {
 					id_set_tmp = 0.0;
 				}
 				break;
+			}
+
+			// ===== SynRM configurable position pipeline =====
+			// For SynRM, override the sensor-mode angle above with the blended multi-band pipeline:
+			// each speed band (low/mid/high) selects a source (Hall/HFI/Encoder/Observer/None) and
+			// the angle is blended across the overlap window at each changeover. foc_sensor_mode is
+			// ignored here; the bands drive commutation, and do_hfi is gated on the active HFI band.
+			if (conf_now->motor_type == MOTOR_TYPE_SYNRM) {
+				mc_foc_synrm_src s_lo, s_hi;
+				float w_band;
+				synrm_band_at(conf_now, RADPS2RPM_f(motor_now->m_pll_speed), &s_lo, &s_hi, &w_band);
+				bool hfi_active = (s_lo == SYNRM_SRC_HFI && w_band < 1.0) ||
+						(s_hi == SYNRM_SRC_HFI && w_band > 0.0);
+
+				// HFI bookkeeping when an HFI band contributes: seed m_hfi.angle from the observer
+				// above the HFI handoff speed, then snap it to the hall sector quadrant so the
+				// coarse hall pins the axis/polarity that HFI alone resolves unreliably on a low-PM
+				// motor (hall table must be calibrated). Hold off q-current during HFI like the
+				// standalone HFI sensor mode.
+				if (hfi_active) {
+					if (fabsf(RADPS2RPM_f(motor_now->m_speed_est_fast)) > conf_now->foc_sl_erpm_hfi) {
+						motor_now->m_hfi.observer_zero_time = 0;
+					} else {
+						motor_now->m_hfi.observer_zero_time += dt;
+					}
+					if (motor_now->m_hfi.observer_zero_time < conf_now->foc_hfi_obs_ovr_sec) {
+						motor_now->m_hfi.angle = motor_now->m_phase_now_observer;
+						motor_now->m_hfi.double_integrator = -motor_now->m_speed_est_fast;
+					}
+					int hall = utils_read_hall(motor_now != &m_motor_1, conf_now->m_hall_extra_samples);
+					int hall_a = conf_now->foc_hall_table[hall];
+					if (hall_a < 201) {
+						float hall_ang = ((float)hall_a / 200.0) * 2.0 * M_PI;
+						float best = motor_now->m_hfi.angle;
+						float best_err = fabsf(utils_angle_difference_rad(best, hall_ang));
+						for (int k = 1; k < 4; k++) {
+							float cand = motor_now->m_hfi.angle + (float)k * (M_PI / 2.0);
+							float err = fabsf(utils_angle_difference_rad(cand, hall_ang));
+							if (err < best_err) { best_err = err; best = cand; }
+						}
+						motor_now->m_hfi.angle = best;
+						utils_norm_angle_rad((float*)&motor_now->m_hfi.angle);
+					}
+					if (!motor_now->m_phase_override &&
+							motor_now->m_control_mode != CONTROL_MODE_OPENLOOP_PHASE) {
+						id_set_tmp = 0.0;
+					}
+				}
+
+				// Resolve each band source to an angle (compute the high one only if it differs).
+				float ang_lo = 0.0, ang_hi = 0.0;
+				for (int side = 0; side < 2; side++) {
+					if (side == 1 && s_hi == s_lo) {
+						ang_hi = ang_lo;
+						break;
+					}
+					mc_foc_synrm_src src = (side == 0) ? s_lo : s_hi;
+					float a;
+					switch (src) {
+					case SYNRM_SRC_HALL:
+						a = foc_correct_hall(motor_now->m_phase_now_observer, dt, motor_now,
+								utils_read_hall(motor_now != &m_motor_1, conf_now->m_hall_extra_samples));
+						break;
+					case SYNRM_SRC_ENCODER:
+						a = foc_correct_encoder(motor_now->m_phase_now_observer,
+								motor_now->m_phase_now_encoder, motor_now->m_speed_est_fast,
+								conf_now->foc_sl_erpm, motor_now);
+						break;
+					case SYNRM_SRC_HFI:
+						a = motor_now->m_hfi.angle;
+						break;
+					case SYNRM_SRC_OBSERVER:
+					default:
+						a = motor_now->m_phase_now_observer;
+						break;
+					}
+					if (side == 0) {
+						ang_lo = a;
+					} else {
+						ang_hi = a;
+					}
+				}
+
+				if (w_band <= 0.0) {
+					state_now->phase = ang_lo;
+				} else if (w_band >= 1.0) {
+					state_now->phase = ang_hi;
+				} else {
+					state_now->phase = utils_interpolate_angles_rad(ang_lo, ang_hi, 1.0 - w_band);
+				}
+
+				if (conf_now->foc_synrm_phase_offset != 0.0) {
+					state_now->phase += DEG2RAD_f(conf_now->foc_synrm_phase_offset);
+					utils_norm_angle_rad((float*)&state_now->phase);
+				}
 			}
 
 			if (motor_now->m_control_mode == CONTROL_MODE_HANDBRAKE) {
@@ -4647,6 +4811,17 @@ static void control_current(motor_all_state_t *motor, float dt) {
 					fabsf(state_m->iq_target) > conf_now->cc_min_current)) &&
 							!motor->m_phase_override &&
 							abs_rpm < (conf_now->foc_sl_erpm_hfi * (motor->m_cc_was_hfi ? 1.8 : 1.5));
+
+	// SynRM: HFI injection runs whenever an HFI band is active in the position pipeline (the
+	// band, not foc_sensor_mode, decides). The band already bounds the speed, so the sl_erpm_hfi
+	// gate above does not apply here.
+	if (conf_now->motor_type == MOTOR_TYPE_SYNRM && !motor->m_phase_override) {
+		mc_foc_synrm_src band_lo, band_hi;
+		float band_w;
+		synrm_band_at(conf_now, RADPS2RPM_f(motor->m_pll_speed), &band_lo, &band_hi, &band_w);
+		do_hfi = (band_lo == SYNRM_SRC_HFI && band_w < 1.0) ||
+				(band_hi == SYNRM_SRC_HFI && band_w > 0.0);
+	}
 
 	bool hfi_est_done = motor->m_hfi.est_done_cnt >= conf_now->foc_hfi_start_samples;
 
