@@ -384,8 +384,13 @@ typedef enum {
 typedef enum {
 	MTPA_MODE_OFF = 0,
 	MTPA_MODE_IQ_TARGET,
-	MTPA_MODE_IQ_MEASURED
+	MTPA_MODE_IQ_MEASURED,
+	MTPA_MODE_LUT // SynRM: id*(|I|) lookup table from FEA dq flux maps (foc_mtpa_lut)
 } MTPA_MODE;
+
+// SynRM MTPA lookup table: id*(|I|) sampled on a uniform current-magnitude axis
+// 0..foc_mtpa_lut_imax, stored in milliamps (int16 keeps it compact for transport).
+#define MTPA_LUT_SIZE			33
 
 typedef enum {
 	FOC_SPEED_SRC_CORRECTED = 0,
