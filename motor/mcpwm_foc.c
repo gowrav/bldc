@@ -33,7 +33,6 @@
 #include "terminal.h"
 #include "encoder/encoder.h"
 #include "commands.h"
-#include "synrm_traj_lut.h"
 #include "timeout.h"
 #include "timer.h"
 #include <math.h>
@@ -2881,23 +2880,30 @@ static float synrm_mtpa_id(const volatile mc_configuration *conf, float imag) {
 	return a + t * (b - a);
 }
 
-// 2-D SynRM trajectory lookup: id*(|I| peak amps, mechanical rpm) -> id* (amps, <= 0), from the
-// baked synrm_traj_id[] table (LUT.xls). Bilinear on a uniform grid. Below base speed this is MTPA;
-// above it the table field-weakens (id grows more negative). iq* is derived by the caller as
-// sign(iq)*sqrt(I^2 - id^2) since |I| = current magnitude is preserved across speed in the table.
-static float synrm_traj_lookup(float imag, float rpm) {
-	float fi = (imag - SYNRM_TRAJ_IMIN) / SYNRM_TRAJ_ISTEP;
-	float fs = (rpm - SYNRM_TRAJ_SMIN) / SYNRM_TRAJ_SSTEP;
+// 2-D SynRM trajectory lookup from config: id*(|I| peak amps, mechanical rpm) -> id* (amps, <= 0).
+// conf->foc_traj_lut[] is the uploadable MTPA+FW table (downsampled from LUT.xls), flat row-major
+// index = current_index*MTPA_TRAJ_NS + speed_index, on uniform axes 0..foc_traj_imax (peak A) and
+// 0..foc_traj_nmax (mech rpm). Bilinear. Below base speed = MTPA; above it the table field-weakens.
+// iq* is derived by the caller as sign(iq)*sqrt(I^2 - id^2) since |I| is preserved across speed.
+static float synrm_traj_lookup(const volatile mc_configuration *conf, float imag, float rpm) {
+	float imax = conf->foc_traj_imax;
+	float nmax = conf->foc_traj_nmax;
+	if (imax <= 0.0f || nmax <= 0.0f) {
+		return 0.0f;
+	}
+	float fi = (imag / imax) * (float)(MTPA_TRAJ_NI - 1);
+	float fs = (rpm  / nmax) * (float)(MTPA_TRAJ_NS - 1);
 	if (fi < 0.0f) { fi = 0.0f; }
 	if (fs < 0.0f) { fs = 0.0f; }
-	if (fi > (float)(SYNRM_TRAJ_NI - 1)) { fi = (float)(SYNRM_TRAJ_NI - 1); }
-	if (fs > (float)(SYNRM_TRAJ_NS - 1)) { fs = (float)(SYNRM_TRAJ_NS - 1); }
-	int i0 = (int)fi; if (i0 > SYNRM_TRAJ_NI - 2) { i0 = SYNRM_TRAJ_NI - 2; }
-	int s0 = (int)fs; if (s0 > SYNRM_TRAJ_NS - 2) { s0 = SYNRM_TRAJ_NS - 2; }
+	if (fi > (float)(MTPA_TRAJ_NI - 1)) { fi = (float)(MTPA_TRAJ_NI - 1); }
+	if (fs > (float)(MTPA_TRAJ_NS - 1)) { fs = (float)(MTPA_TRAJ_NS - 1); }
+	int i0 = (int)fi; if (i0 > MTPA_TRAJ_NI - 2) { i0 = MTPA_TRAJ_NI - 2; }
+	int s0 = (int)fs; if (s0 > MTPA_TRAJ_NS - 2) { s0 = MTPA_TRAJ_NS - 2; }
 	float ti = fi - (float)i0;
 	float ts = fs - (float)s0;
-	float a = synrm_traj_id[i0][s0]     * (1.0f - ts) + synrm_traj_id[i0][s0 + 1]     * ts;
-	float b = synrm_traj_id[i0 + 1][s0] * (1.0f - ts) + synrm_traj_id[i0 + 1][s0 + 1] * ts;
+	const volatile float *L = conf->foc_traj_lut;
+	float a = L[i0       * MTPA_TRAJ_NS + s0] * (1.0f - ts) + L[i0       * MTPA_TRAJ_NS + s0 + 1] * ts;
+	float b = L[(i0 + 1) * MTPA_TRAJ_NS + s0] * (1.0f - ts) + L[(i0 + 1) * MTPA_TRAJ_NS + s0 + 1] * ts;
 	return a * (1.0f - ti) + b * ti;
 }
 
@@ -3902,9 +3908,15 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 					conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D) {
 				// 2-D trajectory LUT id*(|I|, speed) — includes field weakening above base speed.
 				// Speed axis is mechanical rpm = |ERPM| / pole_pairs. |I| budget = |iq_ref| (peak).
+				// Speed-normalize to the bus voltage the LUT was generated for (paper eq. 18):
+				// rpm_norm = rpm * (Vnorm / Vbus), so FW engages at the right speed at any battery V.
 				float pp = (conf_now->si_motor_poles >= 2) ? (conf_now->si_motor_poles / 2.0) : 1.0;
 				float rpm = fabsf(RADPS2RPM_f(motor_now->m_pll_speed)) / pp;
-				id_set_tmp = synrm_traj_lookup(fabsf(iq_ref), rpm);
+				float vbus = mc_interface_get_input_voltage_filtered();
+				if (conf_now->foc_traj_vnorm > 1.0 && vbus > 1.0) {
+					rpm *= conf_now->foc_traj_vnorm / vbus;
+				}
+				id_set_tmp = synrm_traj_lookup(conf_now, fabsf(iq_ref), rpm);
 			} else if (conf_now->motor_type == MOTOR_TYPE_SYNRM) {
 				// SynRM: id*(|I|) from the FEA-derived 1-D MTPA table instead of the constant-L
 				// closed form. iq_ref carries the current-magnitude budget; split it into the

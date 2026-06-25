@@ -330,6 +330,20 @@
 #ifndef MCCONF_FOC_MTPA_LUT_IMAX
 #define MCCONF_FOC_MTPA_LUT_IMAX		81.0	// current magnitude (A) at the last LUT sample
 #endif
+// SynRM 2-D trajectory LUT default (downsampled 10x8 from LUT.xls by gen_traj_downsampled.py).
+// id*(|I|, speed) AMPS, VESC sign (negative), peak. Flat row-major ci*NS+si. Uploadable.
+#ifndef MCCONF_FOC_TRAJ_LUT
+#define MCCONF_FOC_TRAJ_LUT				{-5.410f, -5.410f, -5.410f, -5.410f, -5.410f, -5.410f, -5.410f, -5.410f, -24.046f, -24.046f, -24.046f, -24.046f, -24.046f, -24.046f, -24.046f, -24.046f, -48.092f, -48.092f, -48.092f, -48.092f, -48.092f, -48.092f, -48.092f, -48.092f, -72.138f, -72.138f, -72.138f, -72.138f, -72.138f, -72.138f, -72.138f, -72.138f, -96.184f, -96.184f, -96.184f, -96.184f, -96.184f, -96.184f, -96.184f, -96.184f, -120.230f, -120.230f, -120.230f, -120.230f, -120.230f, -120.230f, -120.230f, -126.786f, -144.276f, -144.276f, -144.276f, -144.276f, -144.276f, -144.276f, -144.276f, -163.043f, -168.322f, -168.322f, -168.322f, -168.322f, -168.322f, -168.322f, -176.982f, -199.151f, -192.368f, -192.368f, -192.368f, -192.368f, -192.368f, -192.368f, -212.580f, -233.871f, -216.414f, -216.414f, -216.414f, -216.414f, -216.414f, -216.414f, -250.531f, -268.692f}
+#endif
+#ifndef MCCONF_FOC_TRAJ_IMAX
+#define MCCONF_FOC_TRAJ_IMAX			282.0	// current axis max (peak A)
+#endif
+#ifndef MCCONF_FOC_TRAJ_NMAX
+#define MCCONF_FOC_TRAJ_NMAX			7500	// speed axis max (mech rpm)
+#endif
+#ifndef MCCONF_FOC_TRAJ_VNORM
+#define MCCONF_FOC_TRAJ_VNORM			51.61	// bus voltage the trajectory LUT was generated for (V)
+#endif
 #ifndef MCCONF_FOC_MOTOR_R
 #define MCCONF_FOC_MOTOR_R				0.015
 #endif

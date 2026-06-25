@@ -393,6 +393,13 @@ typedef enum {
 // 0..foc_mtpa_lut_imax, stored in milliamps (int16 keeps it compact for transport).
 #define MTPA_LUT_SIZE			33
 
+// SynRM 2-D trajectory LUT: id*(|I|, speed) incl. field weakening, downsampled from LUT.xls so it
+// fits mcconf (uploadable). Flat row-major: index = current_index*MTPA_TRAJ_NS + speed_index.
+// Uniform axes: current 0..foc_traj_imax (peak A), speed 0..foc_traj_nmax (mech rpm).
+#define MTPA_TRAJ_NI			10
+#define MTPA_TRAJ_NS			8
+#define MTPA_TRAJ_SIZE			(MTPA_TRAJ_NI * MTPA_TRAJ_NS)
+
 typedef enum {
 	FOC_SPEED_SRC_CORRECTED = 0,
 	FOC_SPEED_SRC_OBSERVER,
@@ -492,6 +499,10 @@ typedef struct {
 	float foc_synrm_blend;
 	float foc_mtpa_lut[MTPA_LUT_SIZE];   // SynRM MTPA id*(|I|) in AMPS, uniform |I| axis 0..foc_mtpa_lut_imax
 	float foc_mtpa_lut_imax;             // current magnitude (A) at the last LUT sample (up to the 450 A controller limit)
+	float foc_traj_lut[MTPA_TRAJ_SIZE];  // SynRM 2-D id*(|I|, speed) AMPS, flat ci*NS+si (uploadable LUT.xls)
+	float foc_traj_imax;                 // current axis max (peak A)
+	float foc_traj_nmax;                 // speed axis max (mech rpm)
+	float foc_traj_vnorm;                // bus voltage the LUT was generated for (V); FW speed-normalized by vnorm/vbus
 	float foc_motor_r;
 	float foc_motor_flux_linkage;
 	float foc_observer_gain;

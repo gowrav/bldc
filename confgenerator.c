@@ -226,6 +226,12 @@ int32_t confgenerator_serialize_mcconf(uint8_t *buffer, const mc_configuration *
 		buffer_append_float32_auto(buffer, conf->foc_mtpa_lut[i], &ind);
 	}
 	buffer_append_float32_auto(buffer, conf->foc_mtpa_lut_imax, &ind);
+	for (int i = 0;i < MTPA_TRAJ_SIZE;i++) {
+		buffer_append_float32_auto(buffer, conf->foc_traj_lut[i], &ind);
+	}
+	buffer_append_float32_auto(buffer, conf->foc_traj_imax, &ind);
+	buffer_append_float32_auto(buffer, conf->foc_traj_nmax, &ind);
+	buffer_append_float32_auto(buffer, conf->foc_traj_vnorm, &ind);
 
 	return ind;
 }
@@ -584,6 +590,12 @@ bool confgenerator_deserialize_mcconf(const uint8_t *buffer, mc_configuration *c
 		conf->foc_mtpa_lut[i] = buffer_get_float32_auto(buffer, &ind);
 	}
 	conf->foc_mtpa_lut_imax = buffer_get_float32_auto(buffer, &ind);
+	for (int i = 0;i < MTPA_TRAJ_SIZE;i++) {
+		conf->foc_traj_lut[i] = buffer_get_float32_auto(buffer, &ind);
+	}
+	conf->foc_traj_imax = buffer_get_float32_auto(buffer, &ind);
+	conf->foc_traj_nmax = buffer_get_float32_auto(buffer, &ind);
+	conf->foc_traj_vnorm = buffer_get_float32_auto(buffer, &ind);
 
 	return true;
 }
@@ -803,6 +815,15 @@ void confgenerator_set_defaults_mcconf(mc_configuration *conf) {
 		}
 	}
 	conf->foc_mtpa_lut_imax = MCCONF_FOC_MTPA_LUT_IMAX;
+	{
+		const float traj_lut_def[MTPA_TRAJ_SIZE] = MCCONF_FOC_TRAJ_LUT;
+		for (int i = 0;i < MTPA_TRAJ_SIZE;i++) {
+			conf->foc_traj_lut[i] = traj_lut_def[i];
+		}
+	}
+	conf->foc_traj_imax = MCCONF_FOC_TRAJ_IMAX;
+	conf->foc_traj_nmax = MCCONF_FOC_TRAJ_NMAX;
+	conf->foc_traj_vnorm = MCCONF_FOC_TRAJ_VNORM;
 	conf->foc_motor_r = MCCONF_FOC_MOTOR_R;
 	conf->foc_motor_flux_linkage = MCCONF_FOC_MOTOR_FLUX_LINKAGE;
 	conf->foc_observer_gain = MCCONF_FOC_OBSERVER_GAIN;
