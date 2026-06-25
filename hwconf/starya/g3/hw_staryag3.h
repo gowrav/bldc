@@ -299,11 +299,14 @@
 #endif
 // Stay PURE HALL across the usable range — the stock observer can't track this saliency and
 // capped speed at ~3000 ERPM (the old 2500/3500 blend window). Verified: pure hall → 16k+ ERPM.
+// foc_sl_erpm_start is hard-clamped to 0.9*foc_sl_erpm in commands.c, so 20000 became 19800 where
+// the saliency-blind observer blended in and the motor fell back. SynRM must never use that
+// observer -> push the handoff far above the operating range (hall/encoder used at all speeds).
 #ifndef MCCONF_FOC_SL_ERPM_START
-#define MCCONF_FOC_SL_ERPM_START		20000.0                    // hall up to here (was 2500)
+#define MCCONF_FOC_SL_ERPM_START		54000.0                    // hall/encoder up to here (0.9*sl_erpm)
 #endif
 #ifndef MCCONF_FOC_SL_ERPM
-#define MCCONF_FOC_SL_ERPM				22000.0                    // never fully sensorless (was 3500)
+#define MCCONF_FOC_SL_ERPM				60000.0                    // observer never engages in range
 #endif
 #ifndef MCCONF_FOC_MOTOR_R
 #define MCCONF_FOC_MOTOR_R				0.00719                    // Rs = 7.19 mOhm (measured)
