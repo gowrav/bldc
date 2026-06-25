@@ -3871,8 +3871,10 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 
 		// Apply MTPA. See: https://github.com/vedderb/bldc/pull/179
 		const float ld_lq_diff = conf_now->foc_motor_ld_lq_diff;
+		const bool synrm_traj_2d = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+				conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D);
 		if (conf_now->foc_mtpa_mode != MTPA_MODE_OFF &&
-				(ld_lq_diff != 0.0 || conf_now->motor_type == MOTOR_TYPE_SYNRM) &&
+				(ld_lq_diff != 0.0 || synrm_traj_2d) &&
 				motor_now->m_control_mode != CONTROL_MODE_OPENLOOP_PHASE) {
 			const float lambda = conf_now->foc_motor_flux_linkage;
 
@@ -3881,8 +3883,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 				iq_ref = utils_min_abs(iq_set_tmp, state_now->iq_filter);
 			}
 
-			if (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
-					conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D) {
+			if (synrm_traj_2d) {
 				// 2-D trajectory LUT id*(|I|, speed) — includes field weakening above base speed.
 				// Speed axis is mechanical rpm = |ERPM| / pole_pairs. |I| budget = |iq_ref| (peak).
 				// Speed-normalize to the bus voltage the LUT was generated for (paper eq. 18):
@@ -3894,10 +3895,9 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 					rpm *= conf_now->foc_traj_vnorm / vbus;
 				}
 				id_set_tmp = synrm_traj_lookup(conf_now, fabsf(iq_ref), rpm);
-			} else if (conf_now->motor_type == MOTOR_TYPE_SYNRM) {
-				// SynRM non-trajectory modes: MTPA only = the trajectory table's speed=0 row.
-				id_set_tmp = synrm_traj_lookup(conf_now, fabsf(iq_ref), 0.0);
 			} else {
+				// Closed-form MTPA (used by IQ Target / IQ Measured, for FOC and SynRM). The 2-D
+				// trajectory LUT is used ONLY in MTPA_MODE_TRAJ_2D above.
 				id_set_tmp = (lambda - sqrtf(SQ(lambda) + 8.0 * SQ(ld_lq_diff * iq_ref))) / (4.0 * ld_lq_diff);
 			}
 			// Keep |id| < |I| so the magnitude-preserving iq stays real (id is negative).
@@ -3913,9 +3913,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 
 		// Field Weakening. Skipped for the SynRM 2-D trajectory: that table already encodes the
 		// field-weakening id/iq for each (|I|, speed), so VESC's generic FW must not stack on top.
-		bool synrm_traj_fw = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
-				conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D);
-		if (!synrm_traj_fw) {
+		if (!synrm_traj_2d) {
 			if (motor_now->m_i_fw_override > 0.01) {
 				motor_now->m_i_fw_set = motor_now->m_i_fw_override;
 			} else {

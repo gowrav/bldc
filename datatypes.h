@@ -385,8 +385,7 @@ typedef enum {
 	MTPA_MODE_OFF = 0,
 	MTPA_MODE_IQ_TARGET,
 	MTPA_MODE_IQ_MEASURED,
-	MTPA_MODE_LUT, // SynRM: MTPA only = the 2-D trajectory table's speed=0 row (no field weakening)
-	MTPA_MODE_TRAJ_2D // SynRM: 2-D id*(|I|, speed) trajectory LUT w/ field weakening (synrm_traj_lut.h)
+	MTPA_MODE_TRAJ_2D // SynRM: 2-D id*(|I|, speed) trajectory LUT + field weakening (foc_traj_lut)
 } MTPA_MODE;
 
 // SynRM 2-D trajectory LUT: id*(|I|, speed) incl. field weakening, downsampled from LUT.xls so it
