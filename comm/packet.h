@@ -23,9 +23,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// Settings
+// Settings. 768 holds the largest payload (mcconf ~755 B with the 8x7 SynRM trajectory grid) while
+// keeping the 5 comm packet buffers small — 1024 left only ~1.3 KB heap free and dropped USB. Stock
+// VESC payloads are <=512; only the SynRM mcconf is larger. (3.3.2A RAM fix.)
 #ifndef PACKET_MAX_PL_LEN
-#define PACKET_MAX_PL_LEN		1024
+#define PACKET_MAX_PL_LEN		768
 #endif
 
 #define PACKET_BUFFER_LEN		(PACKET_MAX_PL_LEN + 8)

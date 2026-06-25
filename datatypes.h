@@ -393,8 +393,8 @@ typedef enum {
 // Uniform axes: current 0..foc_traj_imax (peak A), speed 0..foc_traj_nmax (mech rpm). Its speed=0
 // row IS the MTPA curve, so it serves both the MTPA and the field-weakening modes (no separate
 // 1-D table needed).
-#define MTPA_TRAJ_NI			12
-#define MTPA_TRAJ_NS			10
+#define MTPA_TRAJ_NI			8
+#define MTPA_TRAJ_NS			7
 #define MTPA_TRAJ_SIZE			(MTPA_TRAJ_NI * MTPA_TRAJ_NS)
 
 typedef enum {
