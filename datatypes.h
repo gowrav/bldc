@@ -489,8 +489,8 @@ typedef struct {
 	float foc_synrm_erpm_01;
 	float foc_synrm_erpm_12;
 	float foc_synrm_blend;
-	int16_t foc_mtpa_lut[MTPA_LUT_SIZE]; // SynRM MTPA id*(|I|) in milliamps, uniform |I| axis 0..foc_mtpa_lut_imax
-	float foc_mtpa_lut_imax;             // current magnitude (A) at the last LUT sample
+	float foc_mtpa_lut[MTPA_LUT_SIZE];   // SynRM MTPA id*(|I|) in AMPS, uniform |I| axis 0..foc_mtpa_lut_imax
+	float foc_mtpa_lut_imax;             // current magnitude (A) at the last LUT sample (up to the 450 A controller limit)
 	float foc_motor_r;
 	float foc_motor_flux_linkage;
 	float foc_observer_gain;
