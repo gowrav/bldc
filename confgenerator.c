@@ -222,10 +222,6 @@ int32_t confgenerator_serialize_mcconf(uint8_t *buffer, const mc_configuration *
 	buffer_append_float32_auto(buffer, conf->foc_synrm_erpm_01, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_synrm_erpm_12, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_synrm_blend, &ind);
-	for (int i = 0;i < MTPA_LUT_SIZE;i++) {
-		buffer_append_float32_auto(buffer, conf->foc_mtpa_lut[i], &ind);
-	}
-	buffer_append_float32_auto(buffer, conf->foc_mtpa_lut_imax, &ind);
 	for (int i = 0;i < MTPA_TRAJ_SIZE;i++) {
 		buffer_append_float32_auto(buffer, conf->foc_traj_lut[i], &ind);
 	}
@@ -586,10 +582,6 @@ bool confgenerator_deserialize_mcconf(const uint8_t *buffer, mc_configuration *c
 	conf->foc_synrm_erpm_01 = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_erpm_12 = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_blend = buffer_get_float32_auto(buffer, &ind);
-	for (int i = 0;i < MTPA_LUT_SIZE;i++) {
-		conf->foc_mtpa_lut[i] = buffer_get_float32_auto(buffer, &ind);
-	}
-	conf->foc_mtpa_lut_imax = buffer_get_float32_auto(buffer, &ind);
 	for (int i = 0;i < MTPA_TRAJ_SIZE;i++) {
 		conf->foc_traj_lut[i] = buffer_get_float32_auto(buffer, &ind);
 	}
@@ -808,13 +800,6 @@ void confgenerator_set_defaults_mcconf(mc_configuration *conf) {
 	conf->foc_synrm_erpm_01 = MCCONF_FOC_SYNRM_ERPM_01;
 	conf->foc_synrm_erpm_12 = MCCONF_FOC_SYNRM_ERPM_12;
 	conf->foc_synrm_blend = MCCONF_FOC_SYNRM_BLEND;
-	{
-		const float mtpa_lut_def[MTPA_LUT_SIZE] = MCCONF_FOC_MTPA_LUT;
-		for (int i = 0;i < MTPA_LUT_SIZE;i++) {
-			conf->foc_mtpa_lut[i] = mtpa_lut_def[i];
-		}
-	}
-	conf->foc_mtpa_lut_imax = MCCONF_FOC_MTPA_LUT_IMAX;
 	{
 		const float traj_lut_def[MTPA_TRAJ_SIZE] = MCCONF_FOC_TRAJ_LUT;
 		for (int i = 0;i < MTPA_TRAJ_SIZE;i++) {
