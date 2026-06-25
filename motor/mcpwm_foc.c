@@ -4959,16 +4959,34 @@ static void control_current(motor_all_state_t *motor, float dt) {
 	// Is simply 1/sqrt(3) * v_bus. See https://microchipdeveloper.com/mct5001:start. Adds margin with max_duty.
 	float max_v_mag = ONE_BY_SQRT3 * max_duty * state_m->v_bus * conf_now->foc_overmod_factor;
 
-	// Saturation and anti-windup. Notice that the d-axis has priority as it controls field
-	// weakening and the efficiency.
-	utils_truncate_number_abs((float*)&state_m->vd, max_v_mag * conf_now->foc_mag_vd_max);
-	utils_truncate_number_abs((float*)&state_m->vd_int, max_v_mag * conf_now->foc_mag_vd_max);
+	if (conf_now->motor_type == MOTOR_TYPE_SYNRM) {
+		// SynRM: synmoc-style voltage saturation. Clamp the voltage VECTOR to the limit circle
+		// while PRESERVING its angle (scale vd & vq together), then back-calculate the current-loop
+		// integrators by the amount the output was clamped (vd_int += vd_clamped - vd_presat). This
+		// keeps the commutation direction correct at the limit and stops integral wind-up, instead
+		// of the stock d-priority clamp that lets d eat the budget and squeeze q.
+		float vd_presat = state_m->vd;
+		float vq_presat = state_m->vq;
+		float mag = NORM2_f(state_m->vd, state_m->vq);
+		if (mag > max_v_mag) {
+			float scale = max_v_mag / mag;
+			state_m->vd *= scale;
+			state_m->vq *= scale;
+		}
+		state_m->vd_int += (state_m->vd - vd_presat);
+		state_m->vq_int += (state_m->vq - vq_presat);
+	} else {
+		// Saturation and anti-windup. Notice that the d-axis has priority as it controls field
+		// weakening and the efficiency.
+		utils_truncate_number_abs((float*)&state_m->vd, max_v_mag * conf_now->foc_mag_vd_max);
+		utils_truncate_number_abs((float*)&state_m->vd_int, max_v_mag * conf_now->foc_mag_vd_max);
 
-	float max_vq = sqrtf(SQ(max_v_mag) - SQ(state_m->vd));
-	UTILS_NAN_ZERO(max_vq);
+		float max_vq = sqrtf(SQ(max_v_mag) - SQ(state_m->vd));
+		UTILS_NAN_ZERO(max_vq);
 
-	utils_truncate_number_abs((float*)&state_m->vq, max_vq);
-	utils_truncate_number_abs((float*)&state_m->vq_int, max_vq);
+		utils_truncate_number_abs((float*)&state_m->vq, max_vq);
+		utils_truncate_number_abs((float*)&state_m->vq_int, max_vq);
+	}
 
 	FOC_PROFILE_LINE_FINE();
 
