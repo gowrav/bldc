@@ -33,6 +33,7 @@
 #include "terminal.h"
 #include "encoder/encoder.h"
 #include "commands.h"
+#include "synrm_traj_lut.h"
 #include "timeout.h"
 #include "timer.h"
 #include <math.h>
@@ -2880,6 +2881,26 @@ static float synrm_mtpa_id(const volatile mc_configuration *conf, float imag) {
 	return a + t * (b - a);
 }
 
+// 2-D SynRM trajectory lookup: id*(|I| peak amps, mechanical rpm) -> id* (amps, <= 0), from the
+// baked synrm_traj_id[] table (LUT.xls). Bilinear on a uniform grid. Below base speed this is MTPA;
+// above it the table field-weakens (id grows more negative). iq* is derived by the caller as
+// sign(iq)*sqrt(I^2 - id^2) since |I| = current magnitude is preserved across speed in the table.
+static float synrm_traj_lookup(float imag, float rpm) {
+	float fi = (imag - SYNRM_TRAJ_IMIN) / SYNRM_TRAJ_ISTEP;
+	float fs = (rpm - SYNRM_TRAJ_SMIN) / SYNRM_TRAJ_SSTEP;
+	if (fi < 0.0f) { fi = 0.0f; }
+	if (fs < 0.0f) { fs = 0.0f; }
+	if (fi > (float)(SYNRM_TRAJ_NI - 1)) { fi = (float)(SYNRM_TRAJ_NI - 1); }
+	if (fs > (float)(SYNRM_TRAJ_NS - 1)) { fs = (float)(SYNRM_TRAJ_NS - 1); }
+	int i0 = (int)fi; if (i0 > SYNRM_TRAJ_NI - 2) { i0 = SYNRM_TRAJ_NI - 2; }
+	int s0 = (int)fs; if (s0 > SYNRM_TRAJ_NS - 2) { s0 = SYNRM_TRAJ_NS - 2; }
+	float ti = fi - (float)i0;
+	float ts = fs - (float)s0;
+	float a = synrm_traj_id[i0][s0]     * (1.0f - ts) + synrm_traj_id[i0][s0 + 1]     * ts;
+	float b = synrm_traj_id[i0 + 1][s0] * (1.0f - ts) + synrm_traj_id[i0 + 1][s0 + 1] * ts;
+	return a * (1.0f - ti) + b * ti;
+}
+
 // SynRM position pipeline: for a given |erpm|, pick the two band sources that bracket it and
 // the blend weight w (0 = pure low-band source, 1 = pure high-band source) across the overlap
 // window (+-foc_synrm_blend around each changeover). Pure function of config + erpm, so the
@@ -3877,13 +3898,24 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 				iq_ref = utils_min_abs(iq_set_tmp, state_now->iq_filter);
 			}
 
-			if (conf_now->motor_type == MOTOR_TYPE_SYNRM) {
-				// SynRM: id*(|I|) from the FEA-derived MTPA table instead of the constant-L
+			if (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+					conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D) {
+				// 2-D trajectory LUT id*(|I|, speed) — includes field weakening above base speed.
+				// Speed axis is mechanical rpm = |ERPM| / pole_pairs. |I| budget = |iq_ref| (peak).
+				float pp = (conf_now->si_motor_poles >= 2) ? (conf_now->si_motor_poles / 2.0) : 1.0;
+				float rpm = fabsf(RADPS2RPM_f(motor_now->m_pll_speed)) / pp;
+				id_set_tmp = synrm_traj_lookup(fabsf(iq_ref), rpm);
+			} else if (conf_now->motor_type == MOTOR_TYPE_SYNRM) {
+				// SynRM: id*(|I|) from the FEA-derived 1-D MTPA table instead of the constant-L
 				// closed form. iq_ref carries the current-magnitude budget; split it into the
 				// saturation-aware (id*, iq) pair, preserving magnitude like the FOC path below.
 				id_set_tmp = synrm_mtpa_id(conf_now, fabsf(iq_ref));
 			} else {
 				id_set_tmp = (lambda - sqrtf(SQ(lambda) + 8.0 * SQ(ld_lq_diff * iq_ref))) / (4.0 * ld_lq_diff);
+			}
+			// Keep |id| < |I| so the magnitude-preserving iq stays real (id is negative).
+			if (fabsf(id_set_tmp) > fabsf(iq_set_tmp)) {
+				id_set_tmp = -fabsf(iq_set_tmp);
 			}
 			iq_set_tmp = SIGN(iq_set_tmp) * sqrtf(SQ(iq_set_tmp) - SQ(id_set_tmp));
 		}
@@ -3892,16 +3924,21 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 
 		FOC_PROFILE_LINE_FINE();
 
-		// Field Weakening
-		if (motor_now->m_i_fw_override > 0.01) {
-			motor_now->m_i_fw_set = motor_now->m_i_fw_override;
-		} else {
-			foc_run_fw(motor_now, dt);
-		}
+		// Field Weakening. Skipped for the SynRM 2-D trajectory: that table already encodes the
+		// field-weakening id/iq for each (|I|, speed), so VESC's generic FW must not stack on top.
+		bool synrm_traj_fw = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+				conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D);
+		if (!synrm_traj_fw) {
+			if (motor_now->m_i_fw_override > 0.01) {
+				motor_now->m_i_fw_set = motor_now->m_i_fw_override;
+			} else {
+				foc_run_fw(motor_now, dt);
+			}
 
-//		id_set_tmp -= motor_now->m_i_fw_set;
-		id_set_tmp = utils_max_abs(id_set_tmp, -motor_now->m_i_fw_set);
-		iq_set_tmp -= SIGN(mod_q) * motor_now->m_i_fw_set * conf_now->foc_fw_q_current_factor;
+//			id_set_tmp -= motor_now->m_i_fw_set;
+			id_set_tmp = utils_max_abs(id_set_tmp, -motor_now->m_i_fw_set);
+			iq_set_tmp -= SIGN(mod_q) * motor_now->m_i_fw_set * conf_now->foc_fw_q_current_factor;
+		}
 
 		// Apply current limits
 		// TODO: Consider D axis current for the input current as well. Currently this is done using

@@ -385,7 +385,8 @@ typedef enum {
 	MTPA_MODE_OFF = 0,
 	MTPA_MODE_IQ_TARGET,
 	MTPA_MODE_IQ_MEASURED,
-	MTPA_MODE_LUT // SynRM: id*(|I|) lookup table from FEA dq flux maps (foc_mtpa_lut)
+	MTPA_MODE_LUT, // SynRM: id*(|I|) lookup table from FEA dq flux maps (foc_mtpa_lut)
+	MTPA_MODE_TRAJ_2D // SynRM: 2-D id*(|I|, speed) trajectory LUT w/ field weakening (synrm_traj_lut.h)
 } MTPA_MODE;
 
 // SynRM MTPA lookup table: id*(|I|) sampled on a uniform current-magnitude axis
