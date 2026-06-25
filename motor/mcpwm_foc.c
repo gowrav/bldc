@@ -2890,26 +2890,13 @@ static float synrm_traj_lookup(const volatile mc_configuration *conf, float imag
 // do_hfi gate in control_current() can reuse it to decide when HFI injection must run.
 static void synrm_band_at(const volatile mc_configuration *conf, float erpm,
 		mc_foc_synrm_src *src_lo, mc_foc_synrm_src *src_hi, float *w) {
-	float e = fabsf(erpm);
-	float t1 = conf->foc_synrm_erpm_01;
-	float t2 = conf->foc_synrm_erpm_12;
-	float bl = conf->foc_synrm_blend;
-	if (bl < 1.0) { bl = 1.0; }
-	mc_foc_synrm_src s0 = conf->foc_synrm_src_0;
-	mc_foc_synrm_src s1 = conf->foc_synrm_src_1;
-	mc_foc_synrm_src s2 = conf->foc_synrm_src_2;
-
-	if (e <= (t1 - bl)) {
-		*src_lo = s0; *src_hi = s0; *w = 0.0;
-	} else if (e < (t1 + bl)) {
-		*src_lo = s0; *src_hi = s1; *w = (e - (t1 - bl)) / (2.0 * bl);
-	} else if (e <= (t2 - bl)) {
-		*src_lo = s1; *src_hi = s1; *w = 0.0;
-	} else if (e < (t2 + bl)) {
-		*src_lo = s1; *src_hi = s2; *w = (e - (t2 - bl)) / (2.0 * bl);
-	} else {
-		*src_lo = s2; *src_hi = s2; *w = 0.0;
-	}
+	(void)erpm;
+	// Single-source for now: use the low-band source (foc_synrm_src_0) at every speed. The mid/high
+	// band + changeover machinery is kept in the config/struct but bypassed (the multi-band UI was
+	// hidden). Re-enable the banded logic below when the multi-band feature returns.
+	*src_lo = conf->foc_synrm_src_0;
+	*src_hi = conf->foc_synrm_src_0;
+	*w = 0.0;
 }
 
 void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
@@ -3751,11 +3738,13 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 			}
 
 			// ===== SynRM configurable position pipeline =====
-			// For SynRM, override the sensor-mode angle above with the blended multi-band pipeline:
-			// each speed band (low/mid/high) selects a source (Hall/HFI/Encoder/Observer/None) and
-			// the angle is blended across the overlap window at each changeover. foc_sensor_mode is
-			// ignored here; the bands drive commutation, and do_hfi is gated on the active HFI band.
-			if (conf_now->motor_type == MOTOR_TYPE_SYNRM) {
+			// For SynRM, override the sensor-mode angle above with the single position source
+			// (foc_synrm_src_0). EXCEPTION: when Sensor Mode = Encoder, leave the angle from the
+			// FOC_SENSOR_MODE_ENCODER case above — that path is the proven encoder->hall handoff
+			// (Step 1.7: learns foc_hall_table from the encoder, hands to halls at hybrid_erpm) and
+			// must not be clobbered. do_hfi is gated on the active source.
+			if (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+					conf_now->foc_sensor_mode != FOC_SENSOR_MODE_ENCODER) {
 				mc_foc_synrm_src s_lo, s_hi;
 				float w_band;
 				synrm_band_at(conf_now, RADPS2RPM_f(motor_now->m_pll_speed), &s_lo, &s_hi, &w_band);
@@ -3810,6 +3799,13 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 					case SYNRM_SRC_HALL:
 						a = foc_correct_hall(motor_now->m_phase_now_observer, dt, motor_now,
 								utils_read_hall(motor_now != &m_motor_1, conf_now->m_hall_extra_samples));
+						// The commutation-angle offset corrects HALL vs torque-axis misalignment, so
+						// it applies ONLY to the hall source — not to the encoder (which has its own
+						// foc_encoder_offset) or other sources.
+						if (conf_now->foc_synrm_phase_offset != 0.0) {
+							a += DEG2RAD_f(conf_now->foc_synrm_phase_offset);
+							utils_norm_angle_rad(&a);
+						}
 						break;
 					case SYNRM_SRC_ENCODER:
 						a = foc_correct_encoder(motor_now->m_phase_now_observer,
@@ -3838,11 +3834,8 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 				} else {
 					state_now->phase = utils_interpolate_angles_rad(ang_lo, ang_hi, 1.0 - w_band);
 				}
-
-				if (conf_now->foc_synrm_phase_offset != 0.0) {
-					state_now->phase += DEG2RAD_f(conf_now->foc_synrm_phase_offset);
-					utils_norm_angle_rad((float*)&state_now->phase);
-				}
+				// Note: foc_synrm_phase_offset is applied per-source (HALL only) above, NOT here, so
+				// the encoder source keeps its own offset reference.
 			}
 
 			if (motor_now->m_control_mode == CONTROL_MODE_HANDBRAKE) {
