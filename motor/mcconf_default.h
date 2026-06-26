@@ -315,7 +315,7 @@
 #define MCCONF_FOC_SYNRM_VCT_KV			0.92	// VCT: start field weakening above kv * Vmax
 #endif
 #ifndef MCCONF_FOC_SYNRM_VCT_GAIN
-#define MCCONF_FOC_SYNRM_VCT_GAIN		2.0		// VCT: id_fw accumulation gain (A per V·s)
+#define MCCONF_FOC_SYNRM_VCT_GAIN		40.0	// VCT: id_fw accumulation gain (A per V·s)
 #endif
 #ifndef MCCONF_FOC_SYNRM_BLEND
 #define MCCONF_FOC_SYNRM_BLEND			500.0	// blend half-width (ERPM) around each transition
