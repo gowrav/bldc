@@ -231,6 +231,7 @@ typedef struct {
 	float m_synrm_hall_sin[8];
 	float m_synrm_hall_cos[8];
 	float m_synrm_erpm_filt;
+	float m_synrm_vct_id; // VCT field-weakening id accumulator (<= 0), added to id_set
 	float m_hall_dt_diff_last;
 	float m_hall_dt_diff_now;
 	bool m_motor_released;

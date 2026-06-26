@@ -217,10 +217,10 @@ int32_t confgenerator_serialize_mcconf(uint8_t *buffer, const mc_configuration *
 	buffer_append_float32_auto(buffer, conf->foc_synrm_phase_offset, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_synrm_hybrid_erpm, &ind);
 	buffer[ind++] = conf->foc_synrm_src_0;
-	buffer[ind++] = conf->foc_synrm_src_1;
+	buffer[ind++] = conf->foc_synrm_cc_mode;
 	buffer[ind++] = conf->foc_synrm_src_2;
-	buffer_append_float32_auto(buffer, conf->foc_synrm_erpm_01, &ind);
-	buffer_append_float32_auto(buffer, conf->foc_synrm_erpm_12, &ind);
+	buffer_append_float32_auto(buffer, conf->foc_synrm_vct_kv, &ind);
+	buffer_append_float32_auto(buffer, conf->foc_synrm_vct_gain, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_synrm_blend, &ind);
 	for (int i = 0;i < MTPA_TRAJ_SIZE;i++) {
 		buffer_append_float32_auto(buffer, conf->foc_traj_lut[i], &ind);
@@ -577,10 +577,10 @@ bool confgenerator_deserialize_mcconf(const uint8_t *buffer, mc_configuration *c
 	conf->foc_synrm_phase_offset = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_hybrid_erpm = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_src_0 = buffer[ind++];
-	conf->foc_synrm_src_1 = buffer[ind++];
+	conf->foc_synrm_cc_mode = buffer[ind++];
 	conf->foc_synrm_src_2 = buffer[ind++];
-	conf->foc_synrm_erpm_01 = buffer_get_float32_auto(buffer, &ind);
-	conf->foc_synrm_erpm_12 = buffer_get_float32_auto(buffer, &ind);
+	conf->foc_synrm_vct_kv = buffer_get_float32_auto(buffer, &ind);
+	conf->foc_synrm_vct_gain = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_blend = buffer_get_float32_auto(buffer, &ind);
 	for (int i = 0;i < MTPA_TRAJ_SIZE;i++) {
 		conf->foc_traj_lut[i] = buffer_get_float32_auto(buffer, &ind);
@@ -795,10 +795,10 @@ void confgenerator_set_defaults_mcconf(mc_configuration *conf) {
 	conf->foc_synrm_phase_offset = MCCONF_FOC_SYNRM_PHASE_OFFSET;
 	conf->foc_synrm_hybrid_erpm = MCCONF_FOC_SYNRM_HYBRID_ERPM;
 	conf->foc_synrm_src_0 = MCCONF_FOC_SYNRM_SRC_0;
-	conf->foc_synrm_src_1 = MCCONF_FOC_SYNRM_SRC_1;
+	conf->foc_synrm_cc_mode = MCCONF_FOC_SYNRM_CC_MODE;
 	conf->foc_synrm_src_2 = MCCONF_FOC_SYNRM_SRC_2;
-	conf->foc_synrm_erpm_01 = MCCONF_FOC_SYNRM_ERPM_01;
-	conf->foc_synrm_erpm_12 = MCCONF_FOC_SYNRM_ERPM_12;
+	conf->foc_synrm_vct_kv = MCCONF_FOC_SYNRM_VCT_KV;
+	conf->foc_synrm_vct_gain = MCCONF_FOC_SYNRM_VCT_GAIN;
 	conf->foc_synrm_blend = MCCONF_FOC_SYNRM_BLEND;
 	{
 		const float traj_lut_def[MTPA_TRAJ_SIZE] = MCCONF_FOC_TRAJ_LUT;

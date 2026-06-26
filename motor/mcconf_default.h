@@ -305,17 +305,17 @@
 #ifndef MCCONF_FOC_SYNRM_SRC_0
 #define MCCONF_FOC_SYNRM_SRC_0			SYNRM_SRC_HALL	// low-speed band source
 #endif
-#ifndef MCCONF_FOC_SYNRM_SRC_1
-#define MCCONF_FOC_SYNRM_SRC_1			SYNRM_SRC_HALL	// mid-speed band source
+#ifndef MCCONF_FOC_SYNRM_CC_MODE
+#define MCCONF_FOC_SYNRM_CC_MODE		FOC_SYNRM_CC_BACKCALC	// current-loop strategy (validated default)
 #endif
 #ifndef MCCONF_FOC_SYNRM_SRC_2
-#define MCCONF_FOC_SYNRM_SRC_2			SYNRM_SRC_HALL	// high-speed band source
+#define MCCONF_FOC_SYNRM_SRC_2			SYNRM_SRC_HALL	// unused (old pipeline remnant)
 #endif
-#ifndef MCCONF_FOC_SYNRM_ERPM_01
-#define MCCONF_FOC_SYNRM_ERPM_01		2000.0	// transition ERPM, band 0 -> 1
+#ifndef MCCONF_FOC_SYNRM_VCT_KV
+#define MCCONF_FOC_SYNRM_VCT_KV			0.92	// VCT: start field weakening above kv * Vmax
 #endif
-#ifndef MCCONF_FOC_SYNRM_ERPM_12
-#define MCCONF_FOC_SYNRM_ERPM_12		20000.0	// transition ERPM, band 1 -> 2
+#ifndef MCCONF_FOC_SYNRM_VCT_GAIN
+#define MCCONF_FOC_SYNRM_VCT_GAIN		2.0		// VCT: id_fw accumulation gain (A per V·s)
 #endif
 #ifndef MCCONF_FOC_SYNRM_BLEND
 #define MCCONF_FOC_SYNRM_BLEND			500.0	// blend half-width (ERPM) around each transition

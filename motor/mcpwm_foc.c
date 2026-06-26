@@ -3866,6 +3866,8 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 		const float ld_lq_diff = conf_now->foc_motor_ld_lq_diff;
 		const bool synrm_traj_2d = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
 				conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D);
+		const bool synrm_vct = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+				conf_now->foc_synrm_cc_mode == FOC_SYNRM_CC_VCT);
 		if (conf_now->foc_mtpa_mode != MTPA_MODE_OFF &&
 				(ld_lq_diff != 0.0 || synrm_traj_2d) &&
 				motor_now->m_control_mode != CONTROL_MODE_OPENLOOP_PHASE) {
@@ -3893,6 +3895,11 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 				// trajectory LUT is used ONLY in MTPA_MODE_TRAJ_2D above.
 				id_set_tmp = (lambda - sqrtf(SQ(lambda) + 8.0 * SQ(ld_lq_diff * iq_ref))) / (4.0 * ld_lq_diff);
 			}
+			// VCT field weakening: fold in the voltage-constraint-tracking id (<= 0) accumulated in
+			// control_current. Drives id more negative as the stator voltage hits the limit.
+			if (synrm_vct) {
+				id_set_tmp += motor_now->m_synrm_vct_id;
+			}
 			// Keep |id| < |I| so the magnitude-preserving iq stays real (id is negative).
 			if (fabsf(id_set_tmp) > fabsf(iq_set_tmp)) {
 				id_set_tmp = -fabsf(iq_set_tmp);
@@ -3904,9 +3911,9 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 
 		FOC_PROFILE_LINE_FINE();
 
-		// Field Weakening. Skipped for the SynRM 2-D trajectory: that table already encodes the
-		// field-weakening id/iq for each (|I|, speed), so VESC's generic FW must not stack on top.
-		if (!synrm_traj_2d) {
+		// Field Weakening. Skipped for the SynRM 2-D trajectory (the table already encodes FW) and for
+		// SynRM VCT mode (VCT provides the field weakening), so VESC's generic FW must not stack on top.
+		if (!synrm_traj_2d && !synrm_vct) {
 			if (motor_now->m_i_fw_override > 0.01) {
 				motor_now->m_i_fw_set = motor_now->m_i_fw_override;
 			} else {
@@ -4062,6 +4069,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 		// to take decoupling into account.
 		state_now->vd_int = state_now->vd;
 		state_now->vq_int = state_now->vq;
+		motor_now->m_synrm_vct_id = 0.0; // reset VCT field-weakening accumulator when not modulating
 
 		if (conf_now->foc_cc_decoupling == FOC_CC_DECOUPLING_BEMF ||
 				conf_now->foc_cc_decoupling == FOC_CC_DECOUPLING_CROSS_BEMF) {
@@ -4959,11 +4967,12 @@ static void control_current(motor_all_state_t *motor, float dt) {
 	// Is simply 1/sqrt(3) * v_bus. See https://microchipdeveloper.com/mct5001:start. Adds margin with max_duty.
 	float max_v_mag = ONE_BY_SQRT3 * max_duty * state_m->v_bus * conf_now->foc_overmod_factor;
 
-	if (conf_now->motor_type == MOTOR_TYPE_SYNRM) {
-		// SynRM: synmoc-style voltage saturation. Clamp the voltage VECTOR to the limit circle
-		// while PRESERVING its angle (scale vd & vq together), then back-calculate the current-loop
-		// integrators by the amount the output was clamped (vd_int += vd_clamped - vd_presat). This
-		// keeps the commutation direction correct at the limit and stops integral wind-up, instead
+	if (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+			conf_now->foc_synrm_cc_mode != FOC_SYNRM_CC_STOCK) {
+		// SynRM (Anti-windup / VCT): synmoc-style voltage saturation. Clamp the voltage VECTOR to the
+		// limit circle while PRESERVING its angle (scale vd & vq together), then back-calculate the
+		// current-loop integrators by the amount the output was clamped (vd_int += vd_clamped - vd_presat).
+		// This keeps the commutation direction correct at the limit and stops integral wind-up, instead
 		// of the stock d-priority clamp that lets d eat the budget and squeeze q.
 		float vd_presat = state_m->vd;
 		float vq_presat = state_m->vq;
@@ -4975,8 +4984,21 @@ static void control_current(motor_all_state_t *motor, float dt) {
 		}
 		state_m->vd_int += (state_m->vd - vd_presat);
 		state_m->vq_int += (state_m->vq - vq_presat);
+
+		// VCT: voltage-constraint-tracking field weakening. When the stator voltage rides above
+		// kv*Vmax, accumulate a negative id (more FW); relax it back toward 0 below that. The id_fw
+		// is applied to the current setpoint in the MTPA block. Self-limiting: FW lowers the back-EMF,
+		// which lowers the voltage demand, which stops the accumulation.
+		if (conf_now->foc_synrm_cc_mode == FOC_SYNRM_CC_VCT && max_v_mag > 0.01) {
+			float vmag = NORM2_f(state_m->vd, state_m->vq);
+			float verr = vmag - conf_now->foc_synrm_vct_kv * max_v_mag;
+			motor->m_synrm_vct_id -= verr * conf_now->foc_synrm_vct_gain * dt;
+			utils_truncate_number(&motor->m_synrm_vct_id, -fabsf(conf_now->lo_current_max), 0.0);
+		} else {
+			motor->m_synrm_vct_id = 0.0;
+		}
 	} else {
-		// Saturation and anti-windup. Notice that the d-axis has priority as it controls field
+		// Stock VESC saturation and anti-windup. The d-axis has priority as it controls field
 		// weakening and the efficiency.
 		utils_truncate_number_abs((float*)&state_m->vd, max_v_mag * conf_now->foc_mag_vd_max);
 		utils_truncate_number_abs((float*)&state_m->vd_int, max_v_mag * conf_now->foc_mag_vd_max);
@@ -4986,6 +5008,7 @@ static void control_current(motor_all_state_t *motor, float dt) {
 
 		utils_truncate_number_abs((float*)&state_m->vq, max_vq);
 		utils_truncate_number_abs((float*)&state_m->vq_int, max_vq);
+		motor->m_synrm_vct_id = 0.0;
 	}
 
 	FOC_PROFILE_LINE_FINE();

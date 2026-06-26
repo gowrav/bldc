@@ -292,6 +292,13 @@ typedef enum {
 	SYNRM_SRC_OBSERVER
 } mc_foc_synrm_src;
 
+// SynRM current-loop saturation / field-weakening strategy.
+typedef enum {
+	FOC_SYNRM_CC_STOCK = 0,   // stock VESC: d-priority voltage clamp + integrator clamp
+	FOC_SYNRM_CC_BACKCALC,    // synmoc: angle-preserving saturation + back-calculation anti-windup
+	FOC_SYNRM_CC_VCT          // back-calc anti-windup + voltage-constraint-tracking field weakening
+} mc_foc_synrm_cc;
+
 typedef enum {
 	BMS_TYPE_NONE = 0,
 	BMS_TYPE_VESC
@@ -489,11 +496,11 @@ typedef struct {
 	float foc_synrm_hybrid_erpm;
 	// SynRM v2 position-source pipeline (3 speed bands + 2 transition ERPMs + blend half-width)
 	mc_foc_synrm_src foc_synrm_src_0;
-	mc_foc_synrm_src foc_synrm_src_1;
-	mc_foc_synrm_src foc_synrm_src_2;
-	float foc_synrm_erpm_01;
-	float foc_synrm_erpm_12;
-	float foc_synrm_blend;
+	mc_foc_synrm_cc foc_synrm_cc_mode;  // (was foc_synrm_src_1) current-loop strategy
+	mc_foc_synrm_src foc_synrm_src_2;   // unused (hidden) — old pipeline remnant
+	float foc_synrm_vct_kv;             // (was foc_synrm_erpm_01) VCT: start FW above kv·Vmax
+	float foc_synrm_vct_gain;           // (was foc_synrm_erpm_12) VCT: id_fw accumulation gain
+	float foc_synrm_blend;              // unused (hidden) — old pipeline remnant
 	float foc_traj_lut[MTPA_TRAJ_SIZE];  // SynRM 2-D id*(|I|, speed) AMPS, flat ci*NS+si (uploadable LUT.xls)
 	float foc_traj_imax;                 // current axis max (peak A)
 	float foc_traj_nmax;                 // speed axis max (mech rpm)
