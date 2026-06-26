@@ -218,7 +218,7 @@ int32_t confgenerator_serialize_mcconf(uint8_t *buffer, const mc_configuration *
 	buffer_append_float32_auto(buffer, conf->foc_synrm_hybrid_erpm, &ind);
 	buffer[ind++] = conf->foc_synrm_src_0;
 	buffer[ind++] = conf->foc_synrm_cc_mode;
-	buffer[ind++] = conf->foc_synrm_src_2;
+	buffer[ind++] = conf->foc_synrm_vct_en;
 	buffer_append_float32_auto(buffer, conf->foc_synrm_vct_kv, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_synrm_vct_gain, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_synrm_blend, &ind);
@@ -578,7 +578,7 @@ bool confgenerator_deserialize_mcconf(const uint8_t *buffer, mc_configuration *c
 	conf->foc_synrm_hybrid_erpm = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_src_0 = buffer[ind++];
 	conf->foc_synrm_cc_mode = buffer[ind++];
-	conf->foc_synrm_src_2 = buffer[ind++];
+	conf->foc_synrm_vct_en = buffer[ind++];
 	conf->foc_synrm_vct_kv = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_vct_gain = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_synrm_blend = buffer_get_float32_auto(buffer, &ind);
@@ -796,7 +796,7 @@ void confgenerator_set_defaults_mcconf(mc_configuration *conf) {
 	conf->foc_synrm_hybrid_erpm = MCCONF_FOC_SYNRM_HYBRID_ERPM;
 	conf->foc_synrm_src_0 = MCCONF_FOC_SYNRM_SRC_0;
 	conf->foc_synrm_cc_mode = MCCONF_FOC_SYNRM_CC_MODE;
-	conf->foc_synrm_src_2 = MCCONF_FOC_SYNRM_SRC_2;
+	conf->foc_synrm_vct_en = MCCONF_FOC_SYNRM_VCT_EN;
 	conf->foc_synrm_vct_kv = MCCONF_FOC_SYNRM_VCT_KV;
 	conf->foc_synrm_vct_gain = MCCONF_FOC_SYNRM_VCT_GAIN;
 	conf->foc_synrm_blend = MCCONF_FOC_SYNRM_BLEND;

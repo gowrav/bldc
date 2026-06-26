@@ -3867,7 +3867,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 		const bool synrm_traj_2d = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
 				conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D);
 		const bool synrm_vct = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
-				conf_now->foc_synrm_cc_mode == FOC_SYNRM_CC_VCT);
+				conf_now->foc_synrm_vct_en == FOC_SYNRM_VCT_ON);
 		if (conf_now->foc_mtpa_mode != MTPA_MODE_OFF &&
 				(ld_lq_diff != 0.0 || synrm_traj_2d) &&
 				motor_now->m_control_mode != CONTROL_MODE_OPENLOOP_PHASE) {
@@ -4968,12 +4968,12 @@ static void control_current(motor_all_state_t *motor, float dt) {
 	float max_v_mag = ONE_BY_SQRT3 * max_duty * state_m->v_bus * conf_now->foc_overmod_factor;
 
 	if (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
-			conf_now->foc_synrm_cc_mode != FOC_SYNRM_CC_STOCK) {
-		// SynRM (Anti-windup / VCT): synmoc-style voltage saturation. Clamp the voltage VECTOR to the
-		// limit circle while PRESERVING its angle (scale vd & vq together), then back-calculate the
-		// current-loop integrators by the amount the output was clamped (vd_int += vd_clamped - vd_presat).
-		// This keeps the commutation direction correct at the limit and stops integral wind-up, instead
-		// of the stock d-priority clamp that lets d eat the budget and squeeze q.
+			conf_now->foc_synrm_cc_mode == FOC_SYNRM_CC_BACKCALC) {
+		// SynRM anti-windup: synmoc-style voltage saturation. Clamp the voltage VECTOR to the limit
+		// circle while PRESERVING its angle (scale vd & vq together), then back-calculate the current-
+		// loop integrators by the amount the output was clamped (vd_int += vd_clamped - vd_presat). This
+		// keeps the commutation direction correct at the limit and stops integral wind-up, instead of
+		// the stock d-priority clamp that lets d eat the budget and squeeze q.
 		float vd_presat = state_m->vd;
 		float vq_presat = state_m->vq;
 		float mag = NORM2_f(state_m->vd, state_m->vq);
@@ -4984,19 +4984,6 @@ static void control_current(motor_all_state_t *motor, float dt) {
 		}
 		state_m->vd_int += (state_m->vd - vd_presat);
 		state_m->vq_int += (state_m->vq - vq_presat);
-
-		// VCT: voltage-constraint-tracking field weakening. When the stator voltage rides above
-		// kv*Vmax, accumulate a negative id (more FW); relax it back toward 0 below that. The id_fw
-		// is applied to the current setpoint in the MTPA block. Self-limiting: FW lowers the back-EMF,
-		// which lowers the voltage demand, which stops the accumulation.
-		if (conf_now->foc_synrm_cc_mode == FOC_SYNRM_CC_VCT && max_v_mag > 0.01) {
-			float vmag = NORM2_f(state_m->vd, state_m->vq);
-			float verr = vmag - conf_now->foc_synrm_vct_kv * max_v_mag;
-			motor->m_synrm_vct_id -= verr * conf_now->foc_synrm_vct_gain * dt;
-			utils_truncate_number(&motor->m_synrm_vct_id, -fabsf(conf_now->lo_current_max), 0.0);
-		} else {
-			motor->m_synrm_vct_id = 0.0;
-		}
 	} else {
 		// Stock VESC saturation and anti-windup. The d-axis has priority as it controls field
 		// weakening and the efficiency.
@@ -5008,6 +4995,19 @@ static void control_current(motor_all_state_t *motor, float dt) {
 
 		utils_truncate_number_abs((float*)&state_m->vq, max_vq);
 		utils_truncate_number_abs((float*)&state_m->vq_int, max_vq);
+	}
+
+	// VCT field weakening (outer loop) — runs on top of EITHER anti-windup strategy. When the stator
+	// voltage rides above kv*Vmax, accumulate a negative id (more FW); relax it toward 0 below that.
+	// id_fw is applied to the current setpoint in the MTPA block. Self-limiting: FW lowers the back-EMF
+	// -> lowers the voltage demand -> stops the accumulation.
+	if (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+			conf_now->foc_synrm_vct_en == FOC_SYNRM_VCT_ON && max_v_mag > 0.01) {
+		float vmag = NORM2_f(state_m->vd, state_m->vq);
+		float verr = vmag - conf_now->foc_synrm_vct_kv * max_v_mag;
+		motor->m_synrm_vct_id -= verr * conf_now->foc_synrm_vct_gain * dt;
+		utils_truncate_number(&motor->m_synrm_vct_id, -fabsf(conf_now->lo_current_max), 0.0);
+	} else {
 		motor->m_synrm_vct_id = 0.0;
 	}
 

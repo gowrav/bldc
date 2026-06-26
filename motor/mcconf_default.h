@@ -308,8 +308,8 @@
 #ifndef MCCONF_FOC_SYNRM_CC_MODE
 #define MCCONF_FOC_SYNRM_CC_MODE		FOC_SYNRM_CC_BACKCALC	// current-loop strategy (validated default)
 #endif
-#ifndef MCCONF_FOC_SYNRM_SRC_2
-#define MCCONF_FOC_SYNRM_SRC_2			SYNRM_SRC_HALL	// unused (old pipeline remnant)
+#ifndef MCCONF_FOC_SYNRM_VCT_EN
+#define MCCONF_FOC_SYNRM_VCT_EN			FOC_SYNRM_VCT_OFF	// VCT field weakening on/off
 #endif
 #ifndef MCCONF_FOC_SYNRM_VCT_KV
 #define MCCONF_FOC_SYNRM_VCT_KV			0.92	// VCT: start field weakening above kv * Vmax

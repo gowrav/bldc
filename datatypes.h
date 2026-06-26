@@ -292,12 +292,17 @@ typedef enum {
 	SYNRM_SRC_OBSERVER
 } mc_foc_synrm_src;
 
-// SynRM current-loop saturation / field-weakening strategy.
+// SynRM current-loop saturation / anti-windup strategy (inner loop).
 typedef enum {
 	FOC_SYNRM_CC_STOCK = 0,   // stock VESC: d-priority voltage clamp + integrator clamp
-	FOC_SYNRM_CC_BACKCALC,    // synmoc: angle-preserving saturation + back-calculation anti-windup
-	FOC_SYNRM_CC_VCT          // back-calc anti-windup + voltage-constraint-tracking field weakening
+	FOC_SYNRM_CC_BACKCALC     // synmoc: angle-preserving saturation + back-calculation anti-windup
 } mc_foc_synrm_cc;
+
+// SynRM voltage-constraint-tracking field weakening (outer loop) — works with either cc strategy.
+typedef enum {
+	FOC_SYNRM_VCT_OFF = 0,
+	FOC_SYNRM_VCT_ON
+} mc_foc_synrm_vct;
 
 typedef enum {
 	BMS_TYPE_NONE = 0,
@@ -496,8 +501,8 @@ typedef struct {
 	float foc_synrm_hybrid_erpm;
 	// SynRM v2 position-source pipeline (3 speed bands + 2 transition ERPMs + blend half-width)
 	mc_foc_synrm_src foc_synrm_src_0;
-	mc_foc_synrm_cc foc_synrm_cc_mode;  // (was foc_synrm_src_1) current-loop strategy
-	mc_foc_synrm_src foc_synrm_src_2;   // unused (hidden) — old pipeline remnant
+	mc_foc_synrm_cc foc_synrm_cc_mode;  // (was foc_synrm_src_1) anti-windup strategy
+	mc_foc_synrm_vct foc_synrm_vct_en;  // (was foc_synrm_src_2) VCT field weakening on/off
 	float foc_synrm_vct_kv;             // (was foc_synrm_erpm_01) VCT: start FW above kv·Vmax
 	float foc_synrm_vct_gain;           // (was foc_synrm_erpm_12) VCT: id_fw accumulation gain
 	float foc_synrm_blend;              // unused (hidden) — old pipeline remnant
