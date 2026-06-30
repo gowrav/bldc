@@ -59,6 +59,8 @@ typedef struct {
 	float iq_filter;
 	float vd;
 	float vq;
+	float vd_set;  // commanded (pre-saturation) vd* — current-loop reference before the voltage clamp
+	float vq_set;  // commanded (pre-saturation) vq*
 	float vd_int;
 	float vq_int;
 	uint32_t svm_sector;

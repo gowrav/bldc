@@ -486,6 +486,14 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		if (mask & ((uint32_t)1 << 23)) {
 			buffer_append_float32(send_buffer, mc_interface_get_iq_target(), 1e2, &ind);
 		}
+		// Mask bits 24/25: commanded (pre-saturation) voltage reference vd*/vq* — vs the applied
+		// vd/vq this shows the voltage wall (clamp to the bus limit).
+		if (mask & ((uint32_t)1 << 24)) {
+			buffer_append_float32(send_buffer, mc_interface_get_vd_set(), 1e3, &ind);
+		}
+		if (mask & ((uint32_t)1 << 25)) {
+			buffer_append_float32(send_buffer, mc_interface_get_vq_set(), 1e3, &ind);
+		}
 
 		reply_func(send_buffer, ind);
 		mempools_free_packet_buffer(send_buffer);

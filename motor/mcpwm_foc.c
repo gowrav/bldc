@@ -1438,6 +1438,14 @@ float mcpwm_foc_get_vq(void) {
 	return get_motor_now()->m_motor_state.vq;
 }
 
+float mcpwm_foc_get_vd_set(void) {
+	return get_motor_now()->m_motor_state.vd_set;
+}
+
+float mcpwm_foc_get_vq_set(void) {
+	return get_motor_now()->m_motor_state.vq_set;
+}
+
 float mcpwm_foc_get_mod_alpha_raw(void) {
 	return get_motor_now()->m_motor_state.mod_alpha_raw;
 }
@@ -4962,6 +4970,11 @@ static void control_current(motor_all_state_t *motor, float dt) {
 
 	state_m->vd -= dec_vd; //Negative sign as in the PMSM equations
 	state_m->vq += dec_vq + dec_bemf;
+
+	// Commanded (pre-saturation) voltage reference vd*/vq*. The clamp below scales it down to the
+	// limit circle; comparing vd_set/vq_set to the applied vd/vq shows the voltage wall directly.
+	state_m->vd_set = state_m->vd;
+	state_m->vq_set = state_m->vq;
 
 	// Calculate the max length of the voltage space vector without overmodulation.
 	// Is simply 1/sqrt(3) * v_bus. See https://microchipdeveloper.com/mct5001:start. Adds margin with max_duty.

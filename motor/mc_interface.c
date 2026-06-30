@@ -1475,6 +1475,20 @@ float mc_interface_get_iq_target(void) {
 }
 
 /**
+ * Get the commanded (pre-saturation) FOC voltage reference vd_set / vq_set. Comparing to the applied
+ * vd/vq shows the voltage wall (where the vector is clamped to the bus limit). 0 for non-FOC.
+ */
+float mc_interface_get_vd_set(void) {
+	return MOTOR_TYPE_IS_FOC(motor_now()->m_conf.motor_type) ? mcpwm_foc_get_vd_set() : 0.0;
+}
+
+float mc_interface_get_vq_set(void) {
+	// q-axis flips with direction (DIR_MULT), matching mc_interface_read_reset_avg_vq() so vq* and the
+	// applied vq share a sign convention. vd_set (d-axis) intentionally does NOT apply DIR_MULT.
+	return MOTOR_TYPE_IS_FOC(motor_now()->m_conf.motor_type) ? DIR_MULT * mcpwm_foc_get_vq_set() : 0.0;
+}
+
+/**
  * Read and reset the average direct axis motor voltage. (FOC only)
  *
  * @return

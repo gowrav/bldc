@@ -87,6 +87,8 @@ float mcpwm_foc_get_phase_encoder(void);
 float mcpwm_foc_get_phase_hall(void);
 float mcpwm_foc_get_vd(void);
 float mcpwm_foc_get_vq(void);
+float mcpwm_foc_get_vd_set(void);
+float mcpwm_foc_get_vq_set(void);
 float mcpwm_foc_get_mod_alpha_raw(void);
 float mcpwm_foc_get_mod_beta_raw(void);
 float mcpwm_foc_get_mod_alpha_measured(void);
