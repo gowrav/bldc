@@ -84,6 +84,8 @@ float mc_interface_read_reset_avg_id(void);
 float mc_interface_read_reset_avg_iq(void);
 float mc_interface_read_reset_avg_vd(void);
 float mc_interface_read_reset_avg_vq(void);
+float mc_interface_get_id_target(void);
+float mc_interface_get_iq_target(void);
 float mc_interface_get_pid_pos_set(void);
 float mc_interface_get_pid_pos_now(void);
 void mc_interface_update_pid_pos_offset(float angle_now, bool store);

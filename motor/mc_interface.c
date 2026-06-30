@@ -1463,6 +1463,18 @@ float mc_interface_read_reset_avg_iq(void) {
 }
 
 /**
+ * Get the FOC current setpoints (the loop reference id_target / iq_target, post-MTPA). Used by the
+ * realtime plot to overlay commanded vs measured current. Returns 0 for non-FOC motor types.
+ */
+float mc_interface_get_id_target(void) {
+	return MOTOR_TYPE_IS_FOC(motor_now()->m_conf.motor_type) ? mcpwm_foc_get_id_target() : 0.0;
+}
+
+float mc_interface_get_iq_target(void) {
+	return MOTOR_TYPE_IS_FOC(motor_now()->m_conf.motor_type) ? DIR_MULT * mcpwm_foc_get_iq_target() : 0.0;
+}
+
+/**
  * Read and reset the average direct axis motor voltage. (FOC only)
  *
  * @return

@@ -477,6 +477,15 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 			status |= timeout_kill_sw_active() << 1;
 			send_buffer[ind++] = status;
 		}
+		// Appended (mask bits 22/23): the FOC current setpoints id_target / iq_target (the loop
+		// reference, post-MTPA) so the tool can plot commanded vs measured. Backward-compatible:
+		// older tools stop at the status byte and ignore these trailing bytes.
+		if (mask & ((uint32_t)1 << 22)) {
+			buffer_append_float32(send_buffer, mc_interface_get_id_target(), 1e2, &ind);
+		}
+		if (mask & ((uint32_t)1 << 23)) {
+			buffer_append_float32(send_buffer, mc_interface_get_iq_target(), 1e2, &ind);
+		}
 
 		reply_func(send_buffer, ind);
 		mempools_free_packet_buffer(send_buffer);
