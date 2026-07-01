@@ -1488,6 +1488,14 @@ float mc_interface_get_vq_set(void) {
 	return MOTOR_TYPE_IS_FOC(motor_now()->m_conf.motor_type) ? DIR_MULT * mcpwm_foc_get_vq_set() : 0.0;
 }
 
+float mc_interface_get_synrm_phase_adv(void) {
+	return MOTOR_TYPE_IS_FOC(motor_now()->m_conf.motor_type) ? mcpwm_foc_get_synrm_phase_adv() : 0.0;
+}
+
+float mc_interface_get_synrm_sat_cf(void) {
+	return MOTOR_TYPE_IS_FOC(motor_now()->m_conf.motor_type) ? mcpwm_foc_get_synrm_sat_cf() : 0.0;
+}
+
 /**
  * Read and reset the average direct axis motor voltage. (FOC only)
  *

@@ -130,6 +130,25 @@ static volatile bool pid_thd_stop;
 #define M_MOTOR(is_second_motor)  (((void)is_second_motor), &m_motor_1)
 #endif
 
+// ===== SynRM hall PHASE ADVANCE (experimental, no LUT, hall-only) =====
+// Speed-scheduled commutation-angle advance on the HALL position source. Above PHASE_ADV_ERPM the
+// applied hall offset ramps from foc_synrm_phase_offset (base) up to base + PHASE_ADV_DEG; below it,
+// it ramps back to base. Ported from synmoc ec0fce3 (hall_offset 120->130 @ omega>470 rad/s elec).
+// This rotates the current vector ahead of the rotor to extend the torque-speed curve. Hardcoded
+// for a quick bench trial; promote to config fields once the behaviour is validated.
+#define PHASE_ADV_DEG    10.0f    // extra electrical degrees added at high speed
+#define PHASE_ADV_ERPM   4500.0f  // engage above this |erpm| (~470 rad/s electrical)
+#define PHASE_ADV_RAMP   0.0005f  // UTILS_LP_FAST coeff for the smooth ramp (higher = faster)
+
+// ===== SynRM saturation anti-windup: current-magnitude de-rate (synmoc current_ref_out_cf) =====
+// Complements FOC_SYNRM_CC_BACKCALC (which back-calculates the CURRENT-loop integrators). When the
+// drive is voltage-saturated and can't reach the commanded current, shrink the commanded magnitude
+// toward what's actually achievable so the upstream (speed/throttle) loop and the MTPA split don't
+// wind up on an unreachable target. cf = |i_measured| / |i_commanded|, engaged only below THR.
+// Active in FOC_SYNRM_CC_BACKCALC mode (the "full synmoc anti-windup" switch).
+#define SAT_AW_THR       0.95f    // de-rate only when achieved/commanded ratio drops below this
+#define SAT_AW_RAMP      0.02f    // UTILS_LP_FAST coeff smoothing the de-rate factor (recovery/onset)
+
 static void update_hfi_samples(foc_hfi_samples samples, volatile motor_all_state_t *motor) {
 	utils_sys_lock_cnt();
 
@@ -371,6 +390,7 @@ void mcpwm_foc_init(mc_configuration *conf_m1, mc_configuration *conf_m2) {
 	m_motor_1.m_hall_dt_diff_last = 1.0;
 	m_motor_1.m_hall_dt_diff_now = 1.0;
 	m_motor_1.m_ang_hall_int_prev = -1;
+	m_motor_1.m_synrm_sat_cf = 1.0; // saturation anti-windup de-rate factor (1 = no de-rate)
 	foc_precalc_values((motor_all_state_t*)&m_motor_1);
 	update_hfi_samples(m_motor_1.m_conf->foc_hfi_samples, &m_motor_1);
 	init_audio_state(&m_motor_1.m_audio);
@@ -383,6 +403,7 @@ void mcpwm_foc_init(mc_configuration *conf_m1, mc_configuration *conf_m2) {
 	m_motor_2.m_hall_dt_diff_last = 1.0;
 	m_motor_2.m_hall_dt_diff_now = 1.0;
 	m_motor_2.m_ang_hall_int_prev = -1;
+	m_motor_2.m_synrm_sat_cf = 1.0; // saturation anti-windup de-rate factor (1 = no de-rate)
 	foc_precalc_values((motor_all_state_t*)&m_motor_2);
 	update_hfi_samples(m_motor_2.m_conf->foc_hfi_samples, &m_motor_2);
 	init_audio_state(&m_motor_2.m_audio);
@@ -1444,6 +1465,16 @@ float mcpwm_foc_get_vd_set(void) {
 
 float mcpwm_foc_get_vq_set(void) {
 	return get_motor_now()->m_motor_state.vq_set;
+}
+
+// Experimental SynRM debug: the live hall phase-advance angle [deg] and the saturation
+// anti-windup de-rate factor [0..1]. Exposed in RT data for bench tuning of PHASE_ADV_*/SAT_AW_*.
+float mcpwm_foc_get_synrm_phase_adv(void) {
+	return get_motor_now()->m_synrm_phase_adv;
+}
+
+float mcpwm_foc_get_synrm_sat_cf(void) {
+	return get_motor_now()->m_synrm_sat_cf;
 }
 
 float mcpwm_foc_get_mod_alpha_raw(void) {
@@ -3810,9 +3841,20 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 						// The commutation-angle offset corrects HALL vs torque-axis misalignment, so
 						// it applies ONLY to the hall source — not to the encoder (which has its own
 						// foc_encoder_offset) or other sources.
-						if (conf_now->foc_synrm_phase_offset != 0.0) {
-							a += DEG2RAD_f(conf_now->foc_synrm_phase_offset);
-							utils_norm_angle_rad(&a);
+						//
+						// PHASE ADVANCE (experimental, no LUT): on top of the base calibration offset,
+						// schedule an EXTRA advance above PHASE_ADV_ERPM, smoothly ramped, to extend the
+						// torque-speed curve. Base offset applies immediately (alignment); only the extra
+						// advance ramps. Ported from synmoc ec0fce3 (hall_offset 120->130). See PHASE_ADV_*.
+						{
+							float adv_extra_target = (fabsf(RADPS2RPM_f(motor_now->m_pll_speed)) > PHASE_ADV_ERPM)
+									? PHASE_ADV_DEG : 0.0f;
+							UTILS_LP_FAST(motor_now->m_synrm_phase_adv, adv_extra_target, PHASE_ADV_RAMP);
+							float off_deg = conf_now->foc_synrm_phase_offset + motor_now->m_synrm_phase_adv;
+							if (off_deg != 0.0) {
+								a += DEG2RAD_f(off_deg);
+								utils_norm_angle_rad(&a);
+							}
 						}
 						break;
 					case SYNRM_SRC_ENCODER:
@@ -3872,6 +3914,25 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 
 		// Apply MTPA. See: https://github.com/vedderb/bldc/pull/179
 		const float ld_lq_diff = conf_now->foc_motor_ld_lq_diff;
+		// SynRM saturation anti-windup (synmoc current_ref_out_cf): when the drive is voltage-saturated
+		// and can't reach the commanded current, de-rate the commanded magnitude toward the achievable
+		// current BEFORE the MTPA split, so the split angle stays correct and the upstream loop doesn't
+		// wind up on an unreachable target. Complements BACKCALC (which handles the current-loop
+		// integrators). cf = |i_measured| / |i_commanded|, engaged only when short by more than THR.
+		if (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
+				conf_now->foc_synrm_cc_mode == FOC_SYNRM_CC_BACKCALC) {
+			float cf_target = 1.0;
+			float i_cmd = fabsf(iq_set_tmp);
+			if (i_cmd > 1.0) {
+				float i_meas = NORM2_f(state_now->id_filter, state_now->iq_filter);
+				float r = i_meas / i_cmd;
+				cf_target = (r < SAT_AW_THR) ? r : 1.0; // only de-rate on a real shortfall
+				utils_truncate_number(&cf_target, 0.0, 1.0);
+			}
+			UTILS_LP_FAST(motor_now->m_synrm_sat_cf, cf_target, SAT_AW_RAMP);
+			iq_set_tmp *= motor_now->m_synrm_sat_cf;
+		}
+
 		const bool synrm_traj_2d = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&
 				conf_now->foc_mtpa_mode == MTPA_MODE_TRAJ_2D);
 		const bool synrm_vct = (conf_now->motor_type == MOTOR_TYPE_SYNRM &&

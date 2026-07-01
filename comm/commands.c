@@ -494,6 +494,14 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		if (mask & ((uint32_t)1 << 25)) {
 			buffer_append_float32(send_buffer, mc_interface_get_vq_set(), 1e3, &ind);
 		}
+		// Mask bits 26/27: experimental SynRM tuning aids — hall phase-advance angle [deg] and the
+		// saturation anti-windup de-rate factor [0..1]. Backward-compatible trailing fields.
+		if (mask & ((uint32_t)1 << 26)) {
+			buffer_append_float32(send_buffer, mc_interface_get_synrm_phase_adv(), 1e3, &ind);
+		}
+		if (mask & ((uint32_t)1 << 27)) {
+			buffer_append_float32(send_buffer, mc_interface_get_synrm_sat_cf(), 1e3, &ind);
+		}
 
 		reply_func(send_buffer, ind);
 		mempools_free_packet_buffer(send_buffer);

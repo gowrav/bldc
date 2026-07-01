@@ -315,7 +315,7 @@
 #define MCCONF_FOC_MOTOR_L				0.000365                   // (Ld+Lq)/2 = (245+485)/2 uH (synmoc)
 #endif
 #ifndef MCCONF_FOC_MOTOR_FLUX_LINKAGE
-#define MCCONF_FOC_MOTOR_FLUX_LINKAGE	0.000528                   // lambda = 0.528 mWb (synmoc known-working)
+#define MCCONF_FOC_MOTOR_FLUX_LINKAGE	0.005                       // lambda = 5 mWb (between FEA magnet flux 5.6 mWb & VESC-detected 4.2 mWb)
 #endif
 #ifndef MCCONF_FOC_MOTOR_LD_LQ_DIFF
 #define MCCONF_FOC_MOTOR_LD_LQ_DIFF		0.000240                   // Lq-Ld = 240 uH (synmoc; KEEP POSITIVE)

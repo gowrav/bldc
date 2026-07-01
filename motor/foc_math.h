@@ -234,6 +234,8 @@ typedef struct {
 	float m_synrm_hall_cos[8];
 	float m_synrm_erpm_filt;
 	float m_synrm_vct_id; // VCT field-weakening id accumulator (<= 0), added to id_set
+	float m_synrm_phase_adv; // smoothed hall phase-advance offset [deg], speed-scheduled (see PHASE_ADV_* in mcpwm_foc.c)
+	float m_synrm_sat_cf;    // saturation anti-windup: smoothed achieved/commanded current ratio [0..1] (see SAT_AW_* in mcpwm_foc.c)
 	float m_hall_dt_diff_last;
 	float m_hall_dt_diff_now;
 	bool m_motor_released;
