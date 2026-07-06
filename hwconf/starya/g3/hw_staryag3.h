@@ -216,10 +216,10 @@
 // Default setting overrides - Starya Defaults
 
 #ifndef MCCONF_DEFAULT_MOTOR_TYPE
-#define MCCONF_DEFAULT_MOTOR_TYPE		MOTOR_TYPE_FOC
+#define MCCONF_DEFAULT_MOTOR_TYPE		MOTOR_TYPE_SYNRM	// bench dyno config
 #endif
 #ifndef MCCONF_L_MAX_ABS_CURRENT
-#define MCCONF_L_MAX_ABS_CURRENT		200.0	// The maximum absolute current above which a fault is generated
+#define MCCONF_L_MAX_ABS_CURRENT		400.0	// Absolute current fault threshold — bench
 #endif
 #ifndef MCCONF_FOC_SAMPLE_V0_V7
 #define MCCONF_FOC_SAMPLE_V0_V7			true	// Run control loop in both v0 and v7 (requires phase shunts)
@@ -252,31 +252,31 @@
 #define MCCONF_L_LIM_TEMP_ACCEL_DEC		0.15	// Decrease temperature limits this much during acceleration
 #endif
 #ifndef MCCONF_L_CURRENT_MAX
-#define MCCONF_L_CURRENT_MAX			60.0	// Current limit in Amperes (Upper)
+#define MCCONF_L_CURRENT_MAX			280.0	// Current limit (Upper) — bench 280 A dyno config
 #endif
 #ifndef MCCONF_L_CURRENT_MIN
-#define MCCONF_L_CURRENT_MIN			-60.0	// Current limit in Amperes (Lower)
+#define MCCONF_L_CURRENT_MIN			-200.0	// Current limit (Lower) — bench
 #endif
 #ifndef MCCONF_L_IN_CURRENT_MAX
-#define MCCONF_L_IN_CURRENT_MAX			60.0	// Input current limit in Amperes (Upper)
+#define MCCONF_L_IN_CURRENT_MAX			150.0	// Input current limit (Upper) — bench
 #endif
 #ifndef MCCONF_L_IN_CURRENT_MIN
-#define MCCONF_L_IN_CURRENT_MIN			-60.0	// Input current limit in Amperes (Lower)
+#define MCCONF_L_IN_CURRENT_MIN			-100.0	// Input current limit (Lower) — bench
 #endif
 #ifndef MCCONF_L_MAX_ABS_CURRENT
-#define MCCONF_L_MAX_ABS_CURRENT		200.0	// The maximum absolute current above which a fault is generated
+#define MCCONF_L_MAX_ABS_CURRENT		400.0	// Absolute current fault threshold — bench
 #endif
 #ifndef MCCONF_L_RPM_MAX
-#define MCCONF_L_RPM_MAX				22000.0	    // The motor speed limit (Upper)
+#define MCCONF_L_RPM_MAX				50000.0	// Motor ERPM limit (Upper) — bench
 #endif
 #ifndef MCCONF_L_RPM_MIN
-#define MCCONF_L_RPM_MIN				-22000.0    // The motor speed limit (Lower)
+#define MCCONF_L_RPM_MIN				-50000.0	// Motor ERPM limit (Lower) — bench
 #endif
 #ifndef MCCONF_L_WATT_MAX
-#define MCCONF_L_WATT_MAX				3000.0	    // Maximum wattage output
+#define MCCONF_L_WATT_MAX				8000.0	// Maximum wattage output — bench
 #endif
 #ifndef MCCONF_L_WATT_MIN
-#define MCCONF_L_WATT_MIN				-3000.0	    // Minimum wattage output (braking)
+#define MCCONF_L_WATT_MIN				-8000.0	// Minimum wattage output (braking) — bench
 #endif
 #ifndef MCCONF_L_CURRENT_MAX_SCALE
 #define MCCONF_L_CURRENT_MAX_SCALE		1.0         // Maximum current scale
@@ -295,7 +295,7 @@
 // so a fresh flash comes up ready without re-running motor detection.
 // See docs/synrm/05-bench-config.md. ld_lq_diff stays POSITIVE (Lq-Ld) — do not flip.
 #ifndef MCCONF_FOC_SENSOR_MODE
-#define MCCONF_FOC_SENSOR_MODE			FOC_SENSOR_MODE_HALL       // hall-only (proven in synmoc)
+#define MCCONF_FOC_SENSOR_MODE			FOC_SENSOR_MODE_ENCODER	// custom encoder (AS5600/PA6) low band; hybrid hall handoff
 #endif
 // Stay PURE HALL across the usable range — the stock observer can't track this saliency and
 // capped speed at ~3000 ERPM (the old 2500/3500 blend window). Verified: pure hall → 16k+ ERPM.
@@ -315,16 +315,79 @@
 #define MCCONF_FOC_MOTOR_L				0.000365                   // (Ld+Lq)/2 = (245+485)/2 uH (synmoc)
 #endif
 #ifndef MCCONF_FOC_MOTOR_FLUX_LINKAGE
-#define MCCONF_FOC_MOTOR_FLUX_LINKAGE	0.005                       // lambda = 5 mWb (between FEA magnet flux 5.6 mWb & VESC-detected 4.2 mWb)
+#define MCCONF_FOC_MOTOR_FLUX_LINKAGE	0.0005	// lambda 0.5 mWb — bench-tuned (280 A dyno config)
 #endif
 #ifndef MCCONF_FOC_MOTOR_LD_LQ_DIFF
 #define MCCONF_FOC_MOTOR_LD_LQ_DIFF		0.000240                   // Lq-Ld = 240 uH (synmoc; KEEP POSITIVE)
 #endif
 #ifndef MCCONF_FOC_MTPA_MODE
-#define MCCONF_FOC_MTPA_MODE			MTPA_MODE_IQ_TARGET        // reluctance MTPA
+#define MCCONF_FOC_MTPA_MODE			MTPA_MODE_TRAJ_2D	// 2-D id*(|I|,speed) trajectory LUT — bench
 #endif
 #ifndef MCCONF_FOC_CC_DECOUPLING
 #define MCCONF_FOC_CC_DECOUPLING		FOC_CC_DECOUPLING_DISABLED // match synmoc (also the global default)
+#endif
+
+// Bench-tuned defaults carried from the known-good G2 dyno config
+// (synrm_trials/dyno_v7_ldlq_mcconf_280A.xml, 2026-06-30, 280 A setup) so a fresh
+// flash matches the bench state. Board ADC offsets (foc_offsets_*) are deliberately
+// NOT baked — those are per-board calibration.
+#ifndef MCCONF_FOC_ENCODER_OFFSET
+#define MCCONF_FOC_ENCODER_OFFSET		333.0                      // AS5600 offset from VESC encoder detection
+#endif
+#ifndef MCCONF_FOC_ENCODER_RATIO
+#define MCCONF_FOC_ENCODER_RATIO		2.0                        // = pole pairs (1:1 mechanical encoder)
+#endif
+#ifndef MCCONF_FOC_SYNRM_HYBRID_ERPM
+#define MCCONF_FOC_SYNRM_HYBRID_ERPM	2000.0                     // encoder below, halls above (0.8x hysteresis)
+#endif
+#ifndef MCCONF_FOC_SYNRM_SRC_0
+#define MCCONF_FOC_SYNRM_SRC_0			SYNRM_SRC_ENCODER          // low-band position source
+#endif
+#ifndef MCCONF_FOC_SYNRM_VCT_EN
+#define MCCONF_FOC_SYNRM_VCT_EN			FOC_SYNRM_VCT_ON           // voltage-constraint-tracking FW enabled
+#endif
+#ifndef MCCONF_FOC_SYNRM_VCT_KV
+#define MCCONF_FOC_SYNRM_VCT_KV			0.9
+#endif
+#ifndef MCCONF_FOC_SYNRM_VCT_GAIN
+#define MCCONF_FOC_SYNRM_VCT_GAIN		200.0
+#endif
+#ifndef MCCONF_FOC_TRAJ_VNORM
+#define MCCONF_FOC_TRAJ_VNORM			51.0                       // LUT bus-voltage norm (bench value)
+#endif
+#ifndef MCCONF_FOC_FW_RAMP_TIME
+#define MCCONF_FOC_FW_RAMP_TIME			0.1
+#endif
+// FOC hall table from detection on the Starya test motor (tab 0/7 stay 255).
+#ifndef MCCONF_FOC_HALL_TAB_1
+#define MCCONF_FOC_HALL_TAB_1			169
+#endif
+#ifndef MCCONF_FOC_HALL_TAB_2
+#define MCCONF_FOC_HALL_TAB_2			32
+#endif
+#ifndef MCCONF_FOC_HALL_TAB_3
+#define MCCONF_FOC_HALL_TAB_3			199
+#endif
+#ifndef MCCONF_FOC_HALL_TAB_4
+#define MCCONF_FOC_HALL_TAB_4			98
+#endif
+#ifndef MCCONF_FOC_HALL_TAB_5
+#define MCCONF_FOC_HALL_TAB_5			131
+#endif
+#ifndef MCCONF_FOC_HALL_TAB_6
+#define MCCONF_FOC_HALL_TAB_6			64
+#endif
+#ifndef MCCONF_M_SENSOR_PORT_MODE
+#define MCCONF_M_SENSOR_PORT_MODE		SENSOR_PORT_MODE_CUSTOM_ENCODER // AS5600 analog on PA6
+#endif
+#ifndef MCCONF_M_INVERT_DIRECTION
+#define MCCONF_M_INVERT_DIRECTION		true
+#endif
+#ifndef MCCONF_L_BATTERY_CUT_START
+#define MCCONF_L_BATTERY_CUT_START		24.2                       // dyno PSU setting (carried verbatim)
+#endif
+#ifndef MCCONF_L_BATTERY_CUT_END
+#define MCCONF_L_BATTERY_CUT_END		30.3
 #endif
 
 // App control defaults — ADC throttle + UART control for both g2/g3.
@@ -350,7 +413,7 @@
 
 // Additional Details
 #ifndef MCCONF_SI_MOTOR_POLES
-#define MCCONF_SI_MOTOR_POLES			8 // Motor pole count
+#define MCCONF_SI_MOTOR_POLES			4	// Motor pole count (2 pole pairs, was wrongly 8)
 #endif
 #ifndef MCCONF_SI_GEAR_RATIO
 #define MCCONF_SI_GEAR_RATIO			4.41 // Gear ratio
