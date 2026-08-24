@@ -20,7 +20,7 @@
 #ifndef HW_STARYAG3V2_H_
 #define HW_STARYAG3V2_H_
 
-#define HW_NAME					"STARYA_G3_v2_20aug2026"
+#define HW_NAME					"STARYA_G3_v2_24aug2026"
 
 #define HW_MAJOR				3
 #define HW_MINOR				2
@@ -315,9 +315,9 @@
 #endif
 
 // Setting limits
-#define HW_LIM_CURRENT			-400.0, 400.0
+#define HW_LIM_CURRENT			-500.0, 500.0
 #define HW_LIM_CURRENT_IN		-200.0, 200.0
-#define HW_LIM_CURRENT_ABS		0.0, 400.0
+#define HW_LIM_CURRENT_ABS		0.0, 750.0
 #define HW_LIM_VIN				12, 100.0
 #define HW_LIM_ERPM				-200e3, 200e3
 #define HW_LIM_DUTY_MIN			0.0, 0.1
